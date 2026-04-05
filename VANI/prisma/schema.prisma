@@ -1,0 +1,396 @@
+generator client {
+    provider = "prisma-client"
+    output   = "../generated/prisma"
+}
+
+datasource db {
+    provider = "mysql"
+}
+
+model alerts {
+    id                Int                @id @default(autoincrement())
+    session_id        Int
+    alert_type        alerts_alert_type?
+    severity          alerts_severity?
+    trigger_text      String?            @db.Text
+    message           String?            @db.Text
+    sent_to_doctor    Boolean            @default(false)
+    sent_to_patient   Boolean?           @default(false)
+    sent_to_emergency Boolean?           @default(false)
+    acknowledged_at   DateTime?          @db.Timestamp(0)
+    created_at        DateTime?          @default(now()) @db.Timestamp(0)
+    sessions          sessions           @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+    @@index([session_id], map: "session_id")
+}
+
+model analytics_snapshots {
+    id                   Int                         @id @default(autoincrement())
+    snapshot_date        DateTime                    @db.Date
+    domain               analytics_snapshots_domain?
+    total_sessions       Int?                        @default(0)
+    ai_handled           Int?                        @default(0)
+    human_handled        Int?                        @default(0)
+    avg_duration_seconds Decimal?                    @db.Decimal(10, 2)
+    critical_alerts      Int?                        @default(0)
+    payments_confirmed   Int?                        @default(0)
+    payments_pending     Int?                        @default(0)
+    top_language         String?                     @db.VarChar(10)
+    created_at           DateTime?                   @default(now()) @db.Timestamp(0)
+}
+
+model finance_reports {
+    id                     Int                             @id @default(autoincrement())
+    session_id             Int
+    customer_id            Int?
+    identity_verified      Boolean?                        @default(false)
+    loan_account_confirmed Boolean?                        @default(false)
+    payment_status         finance_reports_payment_status?
+    amount_paid            Decimal?                        @db.Decimal(12, 2)
+    payment_date           DateTime?                       @db.Date
+    payment_mode           finance_reports_payment_mode?
+    payer_type             finance_reports_payer_type?
+    payer_name             String?                         @db.VarChar(255)
+    payer_relationship     String?                         @db.VarChar(100)
+    payer_contact          String?                         @db.VarChar(20)
+    reason_for_nonpayment  String?                         @db.Text
+    promise_to_pay_date    DateTime?                       @db.Date
+    executive_notes        String?                         @db.Text
+    call_attempt_number    Int?                            @default(1)
+    customer_language      String?                         @db.VarChar(10)
+    escalation_required    Boolean?                        @default(false)
+    next_action            finance_reports_next_action?
+    is_edited              Boolean?                        @default(false)
+    edited_by              Int?
+    created_at             DateTime?                       @default(now()) @db.Timestamp(0)
+    updated_at             DateTime?                       @updatedAt
+    customers              customers?                      @relation(fields: [customer_id], references: [id], onUpdate: Restrict)
+    users                  users?                          @relation(fields: [edited_by], references: [id], onUpdate: Restrict)
+    sessions               sessions                        @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+    @@index([customer_id], map: "customer_id")
+    @@index([edited_by], map: "edited_by")
+    @@index([session_id], map: "session_id")
+}
+
+model healthcare_reports {
+    id                    Int                            @id @default(autoincrement())
+    session_id            Int
+    patient_id            Int?
+    visit_type            healthcare_reports_visit_type?
+    chief_complaint       String?                        @db.Text
+    symptoms              String?                        @db.LongText
+    duration              String?                        @db.VarChar(255)
+    severity              healthcare_reports_severity?
+    past_history          String?                        @db.Text
+    current_medications   String?                        @db.LongText
+    allergies             String?                        @db.LongText
+    clinical_observations String?                        @db.Text
+    diagnosis             String?                        @db.Text
+    treatment_plan        String?                        @db.Text
+    follow_up_date        DateTime?                      @db.Date
+    risk_indicators       String?                        @db.LongText
+    ent_findings          String?                        @db.Text
+    pregnancy_data        String?                        @db.LongText
+    injury_details        String?                        @db.Text
+    mobility_status       String?                        @db.VarChar(100)
+    immunization_given    String?                        @db.LongText
+    // referred_to should be an array of string
+    referred_to           String?                        @db.VarChar(255)
+    is_edited             Boolean?                       @default(false)
+    edited_by             Int?
+    doctor_signature      Boolean?                       @default(false)
+    created_at            DateTime?                      @default(now()) @db.Timestamp(0)
+    updated_at            DateTime?                      @updatedAt
+    users                 users?                         @relation(fields: [edited_by], references: [id], onUpdate: Restrict)
+    patients              patients?                      @relation(fields: [patient_id], references: [id], onUpdate: Restrict)
+    sessions              sessions                       @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+    @@index([edited_by], map: "edited_by")
+    @@index([patient_id], map: "patient_id")
+    @@index([session_id], map: "session_id")
+}
+
+model monitoring_programs {
+    id                 Int                                 @id @default(autoincrement())
+    patient_id         Int?
+    doctor_id          Int?
+    origin_session_id  Int?
+    program_type       monitoring_programs_program_type?
+    call_frequency     monitoring_programs_call_frequency?
+    call_time          DateTime?                           @db.Time(0)
+    start_date         DateTime?                           @db.Date
+    end_date           DateTime?                           @db.Date
+    questions_template String?                             @db.LongText
+    status             monitoring_programs_status?         @default(active)
+    created_at         DateTime?                           @default(now()) @db.Timestamp(0)
+    users              users?                              @relation(fields: [doctor_id], references: [id], onUpdate: Restrict)
+    sessions           sessions?                           @relation(fields: [origin_session_id], references: [id], onUpdate: Restrict)
+    patients           patients?                           @relation(fields: [patient_id], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+    @@index([doctor_id], map: "doctor_id")
+    @@index([origin_session_id], map: "origin_session_id")
+    @@index([patient_id], map: "patient_id")
+}
+
+model scheduled_calls {
+    id                Int                     @id @default(autoincrement())
+    customer_id       Int?
+    origin_session_id Int?
+    phone_number      String?                 @db.VarChar(20)
+    scheduled_time    DateTime                @db.Timestamp(0)
+    reason            String?                 @db.Text
+    status            scheduled_calls_status? @default(pending)
+    created_at        DateTime?               @default(now()) @db.Timestamp(0)
+    customers         customers?              @relation(fields: [customer_id], references: [id], onUpdate: Restrict)
+    sessions          sessions?               @relation(fields: [origin_session_id], references: [id], onUpdate: Restrict)
+
+    @@index([customer_id], map: "customer_id")
+    @@index([origin_session_id], map: "origin_session_id")
+}
+
+model sentiment_analysis {
+    id                Int                                   @id @default(autoincrement())
+    session_id        Int                                   @unique(map: "session_id")
+    overall_sentiment sentiment_analysis_overall_sentiment?
+    stress_level      sentiment_analysis_stress_level?
+    cooperation_score Int?
+    key_emotions      String?                               @db.LongText
+    ai_recommendation sentiment_analysis_ai_recommendation?
+    summary           String?                               @db.Text
+    created_at        DateTime?                             @default(now()) @db.Timestamp(0)
+    sessions          sessions                              @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: Restrict)
+}
+
+model transcripts {
+    id                Int                       @id @default(autoincrement())
+    session_id        Int
+    speaker_label     String?                   @db.VarChar(50)
+    speaker_role      transcripts_speaker_role?
+    text              String                    @db.Text
+    language          String?                   @db.VarChar(10)
+    timestamp_seconds Decimal?                  @db.Decimal(10, 2)
+    created_at        DateTime?                 @default(now()) @db.Timestamp(0)
+    sessions          sessions                  @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+    @@index([session_id], map: "session_id")
+}
+
+model customers {
+    id                  Int               @id @default(autoincrement())
+    name                String            @db.VarChar(255)
+    phone_number        String?           @unique(map: "phone_number") @db.VarChar(20)
+    loan_account_number String?           @unique(map: "loan_account_number") @db.VarChar(255)
+    outstanding_amount  Decimal?          @db.Decimal(12, 2)
+    due_date            DateTime?         @db.Date
+    created_at          DateTime?         @default(now()) @db.Timestamp(0)
+    finance_reports     finance_reports[]
+    scheduled_calls     scheduled_calls[]
+    sessions            sessions[]
+}
+
+model patients {
+    id                      Int                   @id @default(autoincrement())
+    name                    String                @db.VarChar(255)
+    phone_number            String?               @db.VarChar(20)
+    age                     Int?
+    gender                  patients_gender?
+    emergency_contact_name  String?               @db.VarChar(255)
+    emergency_contact_phone String?               @db.VarChar(20)
+    blood_group             String?               @db.VarChar(10)
+    known_allergies         String?               @db.LongText
+    chronic_conditions      String?               @db.LongText
+    current_medications     String?               @db.LongText
+    past_surgeries          String?               @db.LongText
+    family_history          String?               @db.Text
+    insurance_id            String?               @db.VarChar(255)
+    created_at              DateTime?             @default(now()) @db.Timestamp(0)
+    healthcare_reports      healthcare_reports[]
+    monitoring_programs     monitoring_programs[]
+    sessions                sessions[]
+}
+
+model sessions {
+    id                  Int                   @id @default(autoincrement())
+    domain              sessions_domain
+    mode                sessions_mode
+    status              sessions_status?      @default(active)
+    user_id             Int?
+    patient_id          Int?
+    customer_id         Int?
+    language_detected   String?               @db.VarChar(10)
+    duration_seconds    Int?
+    created_at          DateTime?             @default(now()) @db.Timestamp(0)
+    completed_at        DateTime?             @db.Timestamp(0)
+    alerts              alerts[]
+    finance_reports     finance_reports[]
+    healthcare_reports  healthcare_reports[]
+    monitoring_programs monitoring_programs[]
+    scheduled_calls     scheduled_calls[]
+    sentiment_analysis  sentiment_analysis?
+    customers           customers?            @relation(fields: [customer_id], references: [id], onUpdate: Restrict)
+    patients            patients?             @relation(fields: [patient_id], references: [id], onUpdate: Restrict)
+    users               users?                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict)
+    transcripts         transcripts[]
+
+    @@index([customer_id], map: "customer_id")
+    @@index([patient_id], map: "patient_id")
+    @@index([user_id], map: "user_id")
+}
+
+model users {
+    id                  Int                   @id @default(autoincrement())
+    name                String                @db.VarChar(255)
+    created_at          DateTime?             @default(now()) @db.Timestamp(0)
+    email               String                @unique(map: "email") @db.VarChar(255)
+    fcm_token           String?               @db.VarChar(255)
+    organisation        String?               @db.VarChar(255)
+    password_hash       String?               @db.VarChar(255)
+    role                users_role            @default(doctor)
+    finance_reports     finance_reports[]
+    healthcare_reports  healthcare_reports[]
+    monitoring_programs monitoring_programs[]
+    sessions            sessions[]
+}
+
+enum sentiment_analysis_overall_sentiment {
+    positive
+    neutral
+    negative
+    frustrated
+}
+
+enum analytics_snapshots_domain {
+    healthcare
+    finance
+    all
+}
+
+enum alerts_alert_type {
+    critical_symptom
+    payment_risk
+    escalation
+}
+
+enum sentiment_analysis_stress_level {
+    low
+    medium
+    high
+}
+
+enum alerts_severity {
+    low
+    medium
+    critical
+}
+
+enum healthcare_reports_visit_type {
+    first_visit
+    follow_up
+    emergency
+}
+
+enum monitoring_programs_program_type {
+    post_surgery
+    chronic
+    pregnancy
+    physiotherapy
+}
+
+enum monitoring_programs_call_frequency {
+    daily
+    alternate_day
+    weekly
+}
+
+enum finance_reports_payment_status {
+    paid
+    unpaid
+    partial
+    promised
+}
+
+enum sentiment_analysis_ai_recommendation {
+    escalate
+    follow_up
+    resolved
+}
+
+enum scheduled_calls_status {
+    pending
+    initiated
+    completed
+    failed
+}
+
+enum healthcare_reports_severity {
+    mild
+    moderate
+    severe
+}
+
+enum finance_reports_payment_mode {
+    cash
+    online
+    cheque
+    upi
+}
+
+enum finance_reports_payer_type {
+    self
+    family
+    friend
+    employer
+    other
+}
+
+enum monitoring_programs_status {
+    active
+    paused
+    completed
+}
+
+enum finance_reports_next_action {
+    follow_up
+    legal
+    resolved
+    write_off
+}
+
+enum sessions_domain {
+    healthcare
+    finance
+}
+
+enum sessions_mode {
+    recording
+    ai_call
+    manual_call
+}
+
+enum sessions_status {
+    active
+    completed
+    pending_review
+    approved
+}
+
+enum transcripts_speaker_role {
+    doctor
+    patient
+    agent
+    customer
+    ai
+}
+
+enum patients_gender {
+    male
+    female
+    other
+}
+
+enum users_role {
+    doctor
+    bank_agent
+    admin
+}
