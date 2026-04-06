@@ -3,8 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Oxanium, Outfit, Lexend } from "next/font/google"
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import Sidebar from "@/components/common/Siderbar";
-import Navbar from "@/components/common/Navbar";
+import AppShell from "@/components/layout/AppShell";
+import { ClerkProvider } from "@clerk/nextjs";
+import { dark } from "@clerk/ui/themes";
 
 const oxaniumHeading = Oxanium({ subsets: ['latin'], variable: '--font-heading' });
 
@@ -50,12 +51,22 @@ export default function RootLayout({
             lang="en"
             className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, oxanium.variable, lexend.variable, "font-sans", outfit.variable, oxaniumHeading.variable)}
         >
-            <body className="min-h-full flex bg-black">
-                <Sidebar />
-                <div className='flex flex-col w-full h-full'>
-                    <Navbar />
-                    {children}
-                </div>
+            <body className="min-h-full bg-black">
+                <ClerkProvider
+                    appearance={{
+                        theme: dark,
+                    }}
+                    signInUrl="/sign-in"
+                    signUpUrl="/sign-up"
+                    signInForceRedirectUrl="/home"
+                    signUpForceRedirectUrl="/home"
+                    signInFallbackRedirectUrl="/home"
+                    signUpFallbackRedirectUrl="/home"
+                    afterSignOutUrl="/"
+                    afterMultiSessionSingleSignOutUrl="/"
+                >
+                    <AppShell>{children}</AppShell>
+                </ClerkProvider>
             </body>
         </html>
     );

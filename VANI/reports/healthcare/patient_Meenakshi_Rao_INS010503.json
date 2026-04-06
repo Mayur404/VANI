@@ -1,0 +1,322 @@
+{
+  "patient": {
+    "id": "INS010503",
+    "name": "Meenakshi Rao",
+    "phone_number": "9012345605",
+    "age": null,
+    "gender": null,
+    "emergency_contact_name": null,
+    "emergency_contact_phone": null,
+    "blood_group": null,
+    "known_allergies": [],
+    "chronic_conditions": [],
+    "current_medications": [
+      "Viagra (2 grams, taken once)"
+    ],
+    "past_surgeries": [],
+    "family_history": null,
+    "insurance_id": "HDFC-INS-821"
+  },
+  "current_status": {
+    "total_calls": 1,
+    "last_call_date": "2026-04-06",
+    "latest_visit_type": "first_visit",
+    "latest_severity": "mild",
+    "latest_chief_complaint": "Persistent cough",
+    "active_symptoms": [
+      "cough"
+    ],
+    "latest_diagnosis": null,
+    "latest_treatment_plan": null,
+    "next_follow_up_date": null,
+    "escalation_required": false
+  },
+  "call_history": [
+    {
+      "session": {
+        "id": "9c6eeff8-63fe-4d4d-b2be-2b08d4f9e0d2",
+        "domain": "healthcare",
+        "mode": "ai_call",
+        "status": "pending_review",
+        "language_detected": "te-IN",
+        "duration_seconds": 119,
+        "created_at": "2026-04-06T18:39:13.766Z",
+        "completed_at": "2026-04-06T18:41:14.483Z"
+      },
+      "healthcare_report": {
+        "id": "hr-1775500874483",
+        "session_id": "9c6eeff8-63fe-4d4d-b2be-2b08d4f9e0d2",
+        "patient_id": "INS010503",
+        "visit_type": "first_visit",
+        "chief_complaint": "Persistent cough",
+        "symptoms": [
+          "cough"
+        ],
+        "duration": "18 years",
+        "severity": "mild",
+        "past_history": null,
+        "current_medications": [
+          "Viagra (2 grams, taken once)"
+        ],
+        "allergies": [],
+        "clinical_observations": null,
+        "diagnosis": null,
+        "treatment_plan": null,
+        "follow_up_date": null,
+        "risk_indicators": {
+          "flags": [],
+          "critical": false
+        },
+        "ent_findings": null,
+        "pregnancy_data": null,
+        "injury_details": null,
+        "mobility_status": null,
+        "immunization_given": [],
+        "referred_to": null,
+        "is_edited": false,
+        "edited_by": null,
+        "doctor_signature": false,
+        "created_at": "2026-04-06T18:41:14.483Z",
+        "updated_at": "2026-04-06T18:41:14.483Z"
+      },
+      "transcript": [
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "doctor",
+          "text": "Hello, this is the virtual care assistant for Dr. Ananya Iyer from Manipal Hospital. Am I speaking with Meenakshi Rao? I would like to understand your symptoms and current condition before the consultation.",
+          "language": "te-IN",
+          "timestamp_seconds": 0
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "patient",
+          "text": "హలో, ఆ నేను మీనాక్షి రావు మాట్లాడుతున్నా చెప్పండి.",
+          "language": "te-IN",
+          "timestamp_seconds": 5
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "doctor",
+          "text": "హలో మీనాక్షి రావు, నేను మనిపాల్ హాస్పిటల్ నుండి డాక్టర్ అనన్య అయ్యర్ కోసం వర్చువల్ కేర్ అసిస్టెంట్ ని. మీరు ఏమైనా ఆరోగ్య సమస్యలతో బాధపడుతున్నారా? మీ లక్షణాలు మరియు ప్రస్తుత పరిస్థితి గురించి నాకు తెలుసుకోవడం చాలా ముఖ్యం.",
+          "language": "te-IN",
+          "timestamp_seconds": 10
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "patient",
+          "text": "నాకు కొన్ని కష్టాలు ఉన్నాయి, నాకు కాల్ నొస్తుంది.",
+          "language": "te-IN",
+          "timestamp_seconds": 15
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "doctor",
+          "text": "మీకు కాల్ వస్తుంది అని తెలుసుకోవడం చాలా విషయం. ఈ కాల్ ఎప్పుడు మొదలైంది మరియు ఎంత తరచుగా వస్తుంది? మీకు ఇది ఎప్పుడు మొదలైంది, ఒక వారం క్రితం లేదా మరింత కాలం క్రితం?",
+          "language": "te-IN",
+          "timestamp_seconds": 20
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "patient",
+          "text": "ఆ లేదండి ఒక 18 ఇయర్స్ కి వస్తుంది.",
+          "language": "te-IN",
+          "timestamp_seconds": 25
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "doctor",
+          "text": "మీకు 18 ఏళ్లుగా కాల్ వస్తుంది అని తెలుసుకోవడం చాలా ముఖ్యం. ఈ కాల్ వల్ల మీకు ఏవైనా ఇతర లక్షణాలు కనిపిస్తున్నాయా, ఉదాహరణకు అతిగా వాపు లేదా నొప్పి? లేదా మీకు ఇతర ఆరోగ్య సమస్యలు ఉన్నాయా?",
+          "language": "te-IN",
+          "timestamp_seconds": 30
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "patient",
+          "text": "ఆ లేవు.",
+          "language": "te-IN",
+          "timestamp_seconds": 35
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "doctor",
+          "text": "మీకు ఇతర లక్షణాలు లేవని తెలుసుకోవడం బాగుంది. మీరు ఇప్పటికే తీసుకున్న ఏవైనా ఔషధాలు లేదా చికిత్సల గురించి నాకు తెలియజేయండి. మీరు ఏవైనా ఆహారపు అలెర్జీలు లేదా ఔషధ అలెర్జీలు కలిగి ఉన్నారా? డాక్టర్ అనన్య అయ్యర్‌తో మాట్లాడేందుకు ముందు మీరు నాకు ఏమైనా ఇతర సమాచారం ఇవ్వాలనుకుంటున్నారా?",
+          "language": "te-IN",
+          "timestamp_seconds": 40
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "patient",
+          "text": "ఆ నేను వేరే టాబ్లెట్స్ మెడికేషన్ ఏం తీసుకోలేదు కానీ నిన్న నైట్ ఒక 2 గ్రామ్స్ వయాగ్రా తీసుకున్నా.",
+          "language": "te-IN",
+          "timestamp_seconds": 45
+        }
+      ],
+      "sentiment_analysis": {
+        "session_id": "9c6eeff8-63fe-4d4d-b2be-2b08d4f9e0d2",
+        "overall_sentiment": "neutral",
+        "stress_level": "low",
+        "cooperation_score": 8,
+        "key_emotions": [
+          "calm"
+        ],
+        "ai_recommendation": "follow_up",
+        "summary": "Patient is calm and cooperative, reporting a long-standing cough.",
+        "created_at": "2026-04-06T18:41:14.483Z"
+      },
+      "alerts": [
+        {
+          "alert_type": "chronic_symptom",
+          "severity": "low",
+          "trigger_text": "18-year cough",
+          "message": "Patient reports a cough lasting 18 years, recommends further evaluation.",
+          "sent_to_doctor": true,
+          "sent_to_patient": false,
+          "sent_to_emergency": false
+        }
+      ]
+    }
+  ],
+  "session": {
+    "id": "9c6eeff8-63fe-4d4d-b2be-2b08d4f9e0d2",
+    "domain": "healthcare",
+    "mode": "ai_call",
+    "status": "pending_review",
+    "language_detected": "te-IN",
+    "duration_seconds": 119,
+    "created_at": "2026-04-06T18:39:13.766Z",
+    "completed_at": "2026-04-06T18:41:14.483Z"
+  },
+  "healthcare_report": {
+    "id": "hr-1775500874483",
+    "session_id": "9c6eeff8-63fe-4d4d-b2be-2b08d4f9e0d2",
+    "patient_id": "INS010503",
+    "visit_type": "first_visit",
+    "chief_complaint": "Persistent cough",
+    "symptoms": [
+      "cough"
+    ],
+    "duration": "18 years",
+    "severity": "mild",
+    "past_history": null,
+    "current_medications": [
+      "Viagra (2 grams, taken once)"
+    ],
+    "allergies": [],
+    "clinical_observations": null,
+    "diagnosis": null,
+    "treatment_plan": null,
+    "follow_up_date": null,
+    "risk_indicators": {
+      "flags": [],
+      "critical": false
+    },
+    "ent_findings": null,
+    "pregnancy_data": null,
+    "injury_details": null,
+    "mobility_status": null,
+    "immunization_given": [],
+    "referred_to": null,
+    "is_edited": false,
+    "edited_by": null,
+    "doctor_signature": false,
+    "created_at": "2026-04-06T18:41:14.483Z",
+    "updated_at": "2026-04-06T18:41:14.483Z"
+  },
+  "transcript": [
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "Hello, this is the virtual care assistant for Dr. Ananya Iyer from Manipal Hospital. Am I speaking with Meenakshi Rao? I would like to understand your symptoms and current condition before the consultation.",
+      "language": "te-IN",
+      "timestamp_seconds": 0
+    },
+    {
+      "speaker_label": "SPEAKER_2",
+      "speaker_role": "patient",
+      "text": "హలో, ఆ నేను మీనాక్షి రావు మాట్లాడుతున్నా చెప్పండి.",
+      "language": "te-IN",
+      "timestamp_seconds": 5
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "హలో మీనాక్షి రావు, నేను మనిపాల్ హాస్పిటల్ నుండి డాక్టర్ అనన్య అయ్యర్ కోసం వర్చువల్ కేర్ అసిస్టెంట్ ని. మీరు ఏమైనా ఆరోగ్య సమస్యలతో బాధపడుతున్నారా? మీ లక్షణాలు మరియు ప్రస్తుత పరిస్థితి గురించి నాకు తెలుసుకోవడం చాలా ముఖ్యం.",
+      "language": "te-IN",
+      "timestamp_seconds": 10
+    },
+    {
+      "speaker_label": "SPEAKER_2",
+      "speaker_role": "patient",
+      "text": "నాకు కొన్ని కష్టాలు ఉన్నాయి, నాకు కాల్ నొస్తుంది.",
+      "language": "te-IN",
+      "timestamp_seconds": 15
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "మీకు కాల్ వస్తుంది అని తెలుసుకోవడం చాలా విషయం. ఈ కాల్ ఎప్పుడు మొదలైంది మరియు ఎంత తరచుగా వస్తుంది? మీకు ఇది ఎప్పుడు మొదలైంది, ఒక వారం క్రితం లేదా మరింత కాలం క్రితం?",
+      "language": "te-IN",
+      "timestamp_seconds": 20
+    },
+    {
+      "speaker_label": "SPEAKER_2",
+      "speaker_role": "patient",
+      "text": "ఆ లేదండి ఒక 18 ఇయర్స్ కి వస్తుంది.",
+      "language": "te-IN",
+      "timestamp_seconds": 25
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "మీకు 18 ఏళ్లుగా కాల్ వస్తుంది అని తెలుసుకోవడం చాలా ముఖ్యం. ఈ కాల్ వల్ల మీకు ఏవైనా ఇతర లక్షణాలు కనిపిస్తున్నాయా, ఉదాహరణకు అతిగా వాపు లేదా నొప్పి? లేదా మీకు ఇతర ఆరోగ్య సమస్యలు ఉన్నాయా?",
+      "language": "te-IN",
+      "timestamp_seconds": 30
+    },
+    {
+      "speaker_label": "SPEAKER_2",
+      "speaker_role": "patient",
+      "text": "ఆ లేవు.",
+      "language": "te-IN",
+      "timestamp_seconds": 35
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "మీకు ఇతర లక్షణాలు లేవని తెలుసుకోవడం బాగుంది. మీరు ఇప్పటికే తీసుకున్న ఏవైనా ఔషధాలు లేదా చికిత్సల గురించి నాకు తెలియజేయండి. మీరు ఏవైనా ఆహారపు అలెర్జీలు లేదా ఔషధ అలెర్జీలు కలిగి ఉన్నారా? డాక్టర్ అనన్య అయ్యర్‌తో మాట్లాడేందుకు ముందు మీరు నాకు ఏమైనా ఇతర సమాచారం ఇవ్వాలనుకుంటున్నారా?",
+      "language": "te-IN",
+      "timestamp_seconds": 40
+    },
+    {
+      "speaker_label": "SPEAKER_2",
+      "speaker_role": "patient",
+      "text": "ఆ నేను వేరే టాబ్లెట్స్ మెడికేషన్ ఏం తీసుకోలేదు కానీ నిన్న నైట్ ఒక 2 గ్రామ్స్ వయాగ్రా తీసుకున్నా.",
+      "language": "te-IN",
+      "timestamp_seconds": 45
+    }
+  ],
+  "sentiment_analysis": {
+    "session_id": "9c6eeff8-63fe-4d4d-b2be-2b08d4f9e0d2",
+    "overall_sentiment": "neutral",
+    "stress_level": "low",
+    "cooperation_score": 8,
+    "key_emotions": [
+      "calm"
+    ],
+    "ai_recommendation": "follow_up",
+    "summary": "Patient is calm and cooperative, reporting a long-standing cough.",
+    "created_at": "2026-04-06T18:41:14.483Z"
+  },
+  "alerts": [
+    {
+      "alert_type": "chronic_symptom",
+      "severity": "low",
+      "trigger_text": "18-year cough",
+      "message": "Patient reports a cough lasting 18 years, recommends further evaluation.",
+      "sent_to_doctor": true,
+      "sent_to_patient": false,
+      "sent_to_emergency": false
+    }
+  ],
+  "created_at": "2026-04-06T18:41:14.483Z",
+  "updated_at": "2026-04-06T18:41:14.483Z"
+}

@@ -1,7 +1,12 @@
-import { Search, Bell, HatGlasses } from 'lucide-react'
+'use client'
+
+import { Bell } from 'lucide-react'
 import { InputGroupDemo } from './Searchbar'
+import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs'
 
 const Navbar = () => {
+    const { isLoaded, isSignedIn } = useUser()
+
     return (
         <div>
             <nav className='h-16 w-full flex items-center justify-center'>
@@ -16,9 +21,25 @@ const Navbar = () => {
                     <div className="border w-fit rounded-full mx-4 ">
                         <Bell size={18} className="text-white m-2" />
                     </div>
-                    <div className='border w-fit rounded-full mx-4 bg-white'>
-                        <HatGlasses size={18} className='text-black m-2' />
-                    </div>
+                    {isLoaded && !isSignedIn ? (
+                        <div className="mx-4 flex items-center gap-3">
+                            <SignInButton>
+                                <button className="text-sm text-[#8B8B8B] hover:text-white transition-colors duration-200">
+                                    Log in
+                                </button>
+                            </SignInButton>
+                            <SignUpButton>
+                                <button className="text-sm font-medium bg-white text-[#0A0A0A] px-4 py-1.5 rounded-full hover:scale-[1.02] transition-transform duration-200">
+                                    Sign up
+                                </button>
+                            </SignUpButton>
+                        </div>
+                    ) : null}
+                    {isLoaded && isSignedIn ? (
+                        <div className="mx-4">
+                            <UserButton afterSignOutUrl="/" />
+                        </div>
+                    ) : null}
                 </div>
             </nav>
         </div>
