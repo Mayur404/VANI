@@ -83,6 +83,9 @@ export const getPatientsList = async () => {
       sessions: {
         orderBy: { created_at: "desc" },
         take: 1,
+        include: {
+          users: true,
+        },
       },
     },
   });

@@ -2,15 +2,19 @@
 
 import { BriefcaseMedical, ChevronRight, CircleDollarSign, Info } from "lucide-react";
 import { useState } from "react";
+import { useDashboardDomain } from "@/store/useRecordingStore";
+import { useRouter } from "next/navigation";
 
 type HomePageClientProps = {
   data: Awaited<ReturnType<typeof import("@/lib/services/home.service").getHomePageData>>;
 };
 
 const HomePageClient = ({ data }: HomePageClientProps) => {
+  const router = useRouter();
   const [selected, setSelected] = useState(false);
   const [choice, setChoice] = useState<"healthcare" | "finance" | null>(null);
   const [lang, setLang] = useState<string | null>(null);
+  const setDashboardDomain = useDashboardDomain((state) => state.setDomain);
 
   const activity = data.recentActivity.slice(0, 3);
 
@@ -46,6 +50,7 @@ const HomePageClient = ({ data }: HomePageClientProps) => {
                 onClick={() => {
                   setChoice("healthcare");
                   setSelected(true);
+                  setDashboardDomain("healthcare");
                 }}
               >
                 <div className="w-fit h-fit bg-[#0a0a0a] p-4 rounded-2xl ml-3">
@@ -97,6 +102,7 @@ const HomePageClient = ({ data }: HomePageClientProps) => {
                 onClick={() => {
                   setChoice("finance");
                   setSelected(true);
+                  setDashboardDomain("finance");
                 }}
               >
                 <div className="w-fit h-fit bg-[#0a0a0a] p-4 rounded-2xl ml-3">
@@ -178,14 +184,20 @@ const HomePageClient = ({ data }: HomePageClientProps) => {
                     {data.summary.activeAlerts} open alerts · {data.summary.activePrograms} active programs
                   </h1>
                 </div>
-                <div
+                <button
+                  disabled={!selected || !choice}
+                  onClick={() => {
+                    if (choice) {
+                      router.push(`/callscheduling`);
+                    }
+                  }}
                   className={`flex items-center justify-center w-fit h-fit ${
-                    selected ? "bg-blue-500" : "bg-gray-500"
-                  } transition-all duration-300 p-2 rounded-xl`}
+                    selected && choice ? "bg-blue-500 hover:bg-blue-600 cursor-pointer" : "bg-gray-500 cursor-not-allowed opacity-50"
+                  } transition-all duration-300 p-2 rounded-xl text-white disabled:opacity-50`}
                 >
-                  <h4 className="text-white text-xl font-semibold">Continue</h4>
-                  <ChevronRight size={24} className="text-white" />
-                </div>
+                  <h4 className="text-xl font-semibold">Continue</h4>
+                  <ChevronRight size={24} />
+                </button>
               </div>
             </div>
           </div>

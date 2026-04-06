@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Copy, Check, Mic, PhoneOff, Flag, Volume2 } from "lucide-react";
 import useRecordingStore from "@/store/useRecordingStore";
+import { useDashboardDomain } from "@/store/useRecordingStore";
 import Visualizer from "@/components/voice/visualizer";
 import ConnectingLoader from "@/components/call/ConnectingLoader";
 import { useWebRTCCall } from "@/hooks/useWebRTCCall";
@@ -95,15 +96,18 @@ const TranscriptPanel = ({
 const ExtractionPanel = ({
     isRecording,
     extractionData,
+    domain = "healthcare",
 }: {
     isRecording: boolean;
     extractionData: VoicePageData["extraction"];
+    domain?: "healthcare" | "finance";
 }) => {
     const extraction = useRecordingStore((state) => state.extraction);
     const updateExtraction = useRecordingStore((state) => state.updateExtraction);
     const isSessionReady = useRecordingStore((state) => state.sessionReady);
+    const isFinance = domain === "finance";
 
-    const fields = [
+    const healthcareFields = [
         { key: "chief_complaint", label: "CHIEF COMPLAINT", fallback: extractionData?.chiefComplaint ?? null },
         { key: "duration", label: "DURATION", fallback: null },
         { key: "past_medical_history", label: "PAST MEDICAL HISTORY", fallback: null },
@@ -118,6 +122,17 @@ const ExtractionPanel = ({
         { key: "treatment_plan", label: "TREATMENT PLAN", fallback: extractionData?.recommendation ?? null },
     ] as const;
 
+    const financeFields = [
+        { key: "chief_complaint", label: "PAYMENT COMMITMENT", fallback: null },
+        { key: "duration", label: "OUTSTANDING BALANCE", fallback: null },
+        { key: "past_medical_history", label: "REASON FOR DELAY", fallback: null },
+        { key: "medications", label: "PROMISED PAYMENT DATE", fallback: null },
+        { key: "diagnosis", label: "RISK LEVEL", fallback: null },
+        { key: "treatment_plan", label: "NEXT ACTION", fallback: null },
+    ] as const;
+
+    const fields = isFinance ? financeFields : healthcareFields;
+
     const symptomValues = extraction.associated_symptoms.length
         ? extraction.associated_symptoms
         : extractionData?.symptoms ?? [];
@@ -127,10 +142,10 @@ const ExtractionPanel = ({
     return (
         <div className="flex flex-col h-full bg-[#090909]">
             <div className="flex items-center justify-between p-4 border-b border-[#9d9d9d]">
-                <h1 className="font-bold text-white text-2xl font-oxanium tracking-wide">LIVE EXTRACTION</h1>
+                <h1 className="font-bold text-white text-2xl font-oxanium tracking-wide">{isFinance ? "FINANCE EXTRACTION" : "LIVE EXTRACTION"}</h1>
                 <div className="flex items-center gap-2">
-                    <span className="text-[#8B5CF6] text-xs font-mono">AI</span>
-                    {isRecording && <div className="w-2 h-2 rounded-full bg-[#8B5CF6] animate-pulse" />}
+                    <span className={`text-xs font-mono ${isFinance ? "text-amber-500" : "text-[#8B5CF6]"}`}>AI</span>
+                    {isRecording && <div className={`w-2 h-2 rounded-full animate-pulse ${isFinance ? "bg-amber-500" : "bg-[#8B5CF6]"}`} />}
                 </div>
             </div>
 
@@ -162,7 +177,7 @@ const ExtractionPanel = ({
 
                 <div className="rounded-lg p-3 bg-[#0e0e0e] border-[#717171]">
                     <span className="text-xs font-mono text-[#dadada] tracking-widest block mb-2">
-                        ASSOCIATED SYMPTOMS
+                        {isFinance ? "RECOVERY FLAGS" : "ASSOCIATED SYMPTOMS"}
                     </span>
                     <div className="flex flex-wrap gap-2">
                         {symptomValues.length > 0 ? (
@@ -222,7 +237,7 @@ const IdleState = ({
     return (
         <div className="w-full min-h-screen bg-[#080708] flex flex-col items-center justify-center gap-8 font-oxanium">
             <div className="w-full max-w-md bg-[#0f0e10] rounded-2xl p-8 border border-[#1f1f1f] flex flex-col gap-6">
-                {/* Patient Info */}
+                {/* Subject Info */}
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-full bg-[#1a1a1a] border-2 border-teal-500/50 flex items-center justify-center">
@@ -266,7 +281,9 @@ const IdleState = ({
                 </div>
 
                 <p className="text-[#6b6b6b] text-sm font-mono text-center">
-                    Manual call: a join link will be sent to the patient via email and SMS
+                    {domain === "finance"
+                        ? "Manual call: a join link will be sent to the customer via email and SMS"
+                        : "Manual call: a join link will be sent to the patient via email and SMS"}
                 </p>
             </div>
         </div>
@@ -384,6 +401,7 @@ const ConnectedState = ({
     localStream,
     onEndCall,
     onFlagAlert,
+    domain = "healthcare",
 }: {
     patientName: string;
     sessionId: string;
@@ -391,6 +409,7 @@ const ConnectedState = ({
     localStream: MediaStream | null;
     onEndCall: () => void;
     onFlagAlert: () => void;
+    domain?: "healthcare" | "finance";
 }) => {
     const [micGain, setMicGain] = useState(80);
 
@@ -483,7 +502,7 @@ const ConnectedState = ({
 
                 {/* RIGHT COLUMN - Extraction */}
                 <div className="h-[90vh] bg-[#0f0e10] rounded-2xl overflow-hidden transition-all duration-500 ease-in-out flex-1 max-w-[25%]">
-                    <ExtractionPanel isRecording={true} extractionData={null} />
+                    <ExtractionPanel isRecording={true} extractionData={null} domain={domain} />
                 </div>
             </div>
         </div>
@@ -495,11 +514,13 @@ const PostCallState = ({
     sessionId,
     callDuration,
     onSaveReport,
+    domain = "healthcare",
 }: {
     patientName: string;
     sessionId: string;
     callDuration: number;
     onSaveReport: () => void;
+    domain?: "healthcare" | "finance";
 }) => {
     const formatDuration = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -517,7 +538,7 @@ const PostCallState = ({
 
                 {/* RIGHT COLUMN - Extraction (expanded) */}
                 <div className="h-[90vh] bg-[#0f0e10] rounded-2xl overflow-hidden transition-all duration-500 ease-in-out flex-1 max-w-[48%]">
-                    <ExtractionPanel isRecording={false} extractionData={null} />
+                    <ExtractionPanel isRecording={false} extractionData={null} domain={domain} />
                 </div>
             </div>
         </div>
@@ -526,6 +547,7 @@ const PostCallState = ({
 
 const VoiceCallPage = () => {
     const searchParams = useSearchParams();
+    const selectedWorkspaceDomain = useDashboardDomain((state) => state.domain);
 
     const callStatus = useRecordingStore((state) => state.callStatus);
     const setCallStatus = useRecordingStore((state) => state.setCallStatus);
@@ -541,11 +563,19 @@ const VoiceCallPage = () => {
 
     const [customerLink, setCustomerLink] = useState("");
     const [callMode, setCallMode] = useState<"ai" | "manual">("manual");
+    const fallbackDomain =
+        String(selectedWorkspaceDomain).toLowerCase() === "finance" ? "finance" : "healthcare";
+    const requestedDomain = searchParams.get("domain");
+    const resolvedDomain =
+        requestedDomain === "finance" || requestedDomain === "healthcare"
+            ? requestedDomain
+            : fallbackDomain;
+
     const callContext = {
         name: searchParams.get("name") || "Ravi Kumar",
         id: searchParams.get("id") || "12345",
         phone: searchParams.get("phone") || "+91 9876543210",
-        domain: (searchParams.get("domain") === "finance" ? "finance" : "healthcare") as "healthcare" | "finance",
+        domain: resolvedDomain as "healthcare" | "finance",
         amount: Number(searchParams.get("amount") || "50000"),
         bank: searchParams.get("bank") || "VANI Health Finance",
         agent: searchParams.get("agent") || "Dr. Praneeth",
@@ -587,6 +617,8 @@ const VoiceCallPage = () => {
                     loanAccountNumber: callContext.id,
                     outstandingAmount: callContext.amount,
                     bankName: callContext.bank,
+                    domain: callContext.domain,
+                    agentName: callContext.agent,
                 }),
             });
 
@@ -616,6 +648,7 @@ const VoiceCallPage = () => {
                     customerName: callContext.name,
                     customerPhone: callContext.phone,
                     loanAccountNumber: callContext.id,
+                    domain: callContext.domain,
                 }),
             });
 
@@ -702,6 +735,7 @@ const VoiceCallPage = () => {
                 localStream={localStream}
                 onEndCall={handleEndCall}
                 onFlagAlert={handleFlagAlert}
+                domain={callContext.domain}
             />
         );
     }
@@ -713,6 +747,7 @@ const VoiceCallPage = () => {
                 sessionId={sessionId || ""}
                 callDuration={callDuration}
                 onSaveReport={handleSaveReport}
+                domain={callContext.domain}
             />
         );
     }

@@ -20,7 +20,7 @@ export const getHomeWorkspaceSummary = async () => {
 };
 
 export const getHomeRecentActivity = async (limit = 8) => {
-  return prisma.sessions.findMany({
+  const activities = await prisma.sessions.findMany({
     take: limit,
     orderBy: { created_at: "desc" },
     include: {
@@ -37,6 +37,14 @@ export const getHomeRecentActivity = async (limit = 8) => {
       },
     },
   });
+
+  return activities.map(activity => ({
+    ...activity,
+    customers: activity.customers ? {
+      ...activity.customers,
+      outstanding_amount: activity.customers.outstanding_amount?.toNumber() ?? null,
+    } : null,
+  }));
 };
 
 export const getWorkspaceOptions = async () => {

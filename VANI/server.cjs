@@ -11,6 +11,8 @@
 require('dotenv').config({ path: '.env' });
 require('dotenv').config({ path: '.env.local', override: true });
 
+process.chdir(__dirname);
+
 const express = require('express');
 const http = require('http');
 const next = require('next');
@@ -20,7 +22,11 @@ const { setupWebRTCSignaling } = require('./webrtc-signaling.cjs');
 const { setupAICall } = require('./ai-call.cjs');
 
 const dev = process.env.NODE_ENV !== 'production';
-const nextApp = next({ dev });
+const nextApp = next({
+  dev,
+  dir: __dirname,
+  webpack: true,
+});
 const handle = nextApp.getRequestHandler();
 
 nextApp.prepare().then(() => {

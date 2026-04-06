@@ -13,8 +13,160 @@ const { generateReport } = require('./report-generator.cjs');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const sessions = {};
 
-function setupAICall(server, app) {
+function normalizeDomain(value) {
+  return String(value || '').toLowerCase() === 'finance' ? 'finance' : 'healthcare';
+}
 
+function getInitialGreeting(session) {
+  if (session.domain === 'finance') {
+    return `Hello, this is an automated call from ${session.bankName}. Am I speaking with ${session.customerName}? I am calling regarding your loan account ending in ${session.loanAccount}. Do you have a moment to speak?`;
+  }
+
+  return `Hello, this is the virtual care assistant for ${session.agentName || 'your doctor'} from ${session.bankName}. Am I speaking with ${session.customerName}? I would like to understand your symptoms and current condition before the consultation.`;
+}
+
+function getSystemPrompt(session) {
+  if (session.domain === 'finance') {
+    return `You are a professional loan recovery agent for ${session.bankName}.
+Call purpose: Collect overdue loan of Rs.${session.loanAmount} from ${session.customerName} (account: ${session.loanAccount}).
+You already greeted them with: "${session.conversationHistory[0].content}"
+
+LANGUAGE: Always reply in the same language the customer uses.
+
+STRICT [CALL_COMPLETE] RULE:
+- [CALL_COMPLETE] can ONLY be output after ALL of these are done:
+  a) Customer identity confirmed
+  b) Loan account discussed
+  c) Payment plan OR refusal after 3 attempts OR valid reason to end
+  d) You asked "Is there anything else I can help you with?"
+  e) Customer responded negatively to that question
+- NEVER output [CALL_COMPLETE] in the first 3 exchanges
+- NEVER output [CALL_COMPLETE] just because customer said yes or acknowledged
+
+CONVERSATION FLOW:
+Step 1 -> Confirm identity
+Step 2 -> Discuss loan amount
+Step 3 -> Ask about payment status
+Step 4 -> If not paid -> understand reason -> negotiate
+Step 5 -> Confirm agreed plan with specific date and amount
+Step 6 -> Ask "Is there anything else I can help you with?"
+Step 7 -> On negative response -> [CALL_COMPLETE]
+
+PRIORITY HANDLING:
+- Wrong person -> apologize and [CALL_COMPLETE]
+- Already paid -> note details and [CALL_COMPLETE]
+- Busy -> get callback time and [CALL_COMPLETE]
+- Legal/bankruptcy -> escalate and [CALL_COMPLETE]
+- Refusing payment -> try 3 times before [CALL_COMPLETE]
+- Aggressive -> warn once then [CALL_COMPLETE]
+
+STYLE: 2-3 short complete sentences. Never cut off mid sentence.
+
+When ending output exactly on its own line:
+[CALL_COMPLETE]
+Do not add any JSON after it.`;
+  }
+
+  return `You are a multilingual virtual clinical assistant supporting a doctor-patient conversation for ${session.agentName || 'the doctor'} at ${session.bankName}.
+Patient name: ${session.customerName}
+You already greeted them with: "${session.conversationHistory[0].content}"
+
+PRIMARY GOAL:
+- Understand the patient's current problem in a calm, empathetic way
+- Collect symptom details, duration, severity, associated symptoms, past medical history, allergies, and current medications
+- Help the doctor by producing a clinically useful conversation
+- Always reply in the same language the patient uses
+
+HEALTHCARE FOCUS:
+- Ask about chief complaint first
+- Clarify duration, onset, severity, associated symptoms, medications, allergies, and relevant medical history
+- If the patient mentions a diagnosis or prior treatment, capture it naturally
+- If there are emergency red flags like severe chest pain, severe breathing difficulty, stroke symptoms, heavy bleeding, loss of consciousness, or suicidal intent, advise urgent in-person or emergency care immediately
+
+BOUNDARIES:
+- Do not invent lab values, prescriptions, or diagnoses
+- You may summarize likely concerns, but do not present yourself as the final doctor
+- Keep the conversation warm, concise, and clinically useful
+
+STRICT [CALL_COMPLETE] RULE:
+- [CALL_COMPLETE] can ONLY be output after ALL of these are done:
+  a) Identity confirmed or caregiver confirmed
+  b) Chief complaint understood
+  c) Duration or onset asked
+  d) Key symptoms or relevant negatives explored
+  e) You asked "Is there anything else you want the doctor to know?"
+  f) Patient responded negatively or said that is all
+- NEVER output [CALL_COMPLETE] in the first 4 exchanges
+
+STYLE:
+- 2-3 short complete sentences
+- Warm, respectful, clear
+- Same language as the patient
+
+When ending output exactly on its own line:
+[CALL_COMPLETE]
+Do not add any JSON after it.`;
+}
+
+function getClosingMessage(session) {
+  if (session.domain === 'finance') {
+    return 'Thank you for your time. We will follow up as discussed. Have a good day.';
+  }
+
+  return 'Thank you. Your information will be shared with the doctor. If your symptoms become severe, please seek urgent medical care.';
+}
+
+function buildConversationText(session) {
+  return (session.conversationHistory || [])
+    .map((msg) => {
+      const speaker = msg.role === 'model' || msg.role === 'assistant' ? 'Assistant' : 'Patient';
+      return `${speaker}: ${msg.content}`;
+    })
+    .join('\n');
+}
+
+async function generateHealthcareSummary(session) {
+  const transcriptText = buildConversationText(session);
+
+  const prompt = `You are extracting a concise healthcare summary from a doctor-patient support conversation.
+Return ONLY valid JSON with this exact shape:
+{
+  "chief_complaint": string or null,
+  "duration": string or null,
+  "associated_symptoms": string[],
+  "past_medical_history": string or null,
+  "medications": string or null,
+  "diagnosis": string or null,
+  "treatment_plan": string or null,
+  "sentiment": string,
+  "language": string
+}
+
+Rules:
+- diagnosis should be a working assessment or prior diagnosis only if mentioned, otherwise null
+- treatment_plan should be the doctor-advice or next step mentioned, otherwise null
+- associated_symptoms should be short phrases
+- language should be the conversation language code if obvious, otherwise "${session.lastLanguage || 'en-IN'}"
+
+Conversation:
+${transcriptText}`;
+
+  const response = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: 500,
+    temperature: 0.1
+  });
+
+  const raw = response.choices[0].message.content
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim();
+
+  return JSON.parse(raw);
+}
+
+function setupAICall(server, app) {
   const { WebSocketServer } = require('ws');
   const wss = new WebSocketServer({ noServer: true });
 
@@ -28,8 +180,7 @@ function setupAICall(server, app) {
   });
 
   wss.on('connection', (ws, req) => {
-    const sessionId = new URL(req.url, 'http://localhost')
-      .searchParams.get('session');
+    const sessionId = new URL(req.url, 'http://localhost').searchParams.get('session');
 
     if (!sessionId || !sessions[sessionId]) {
       ws.close(1008, 'Invalid session');
@@ -46,8 +197,7 @@ function setupAICall(server, app) {
       const msg = JSON.parse(data);
       console.log(`[AI Call] Message received: type=${msg.type}`);
 
-      if (sessions[sessionId]?.status === 'ended' ||
-          sessions[sessionId]?.status === 'completing') {
+      if (sessions[sessionId]?.status === 'ended' || sessions[sessionId]?.status === 'completing') {
         return;
       }
 
@@ -70,13 +220,12 @@ function setupAICall(server, app) {
     });
   });
 
-  // ── AI conversation ─────────────────────────────────────────
   async function startAIConversation(sessionId) {
     const s = sessions[sessionId];
     s.startTime = Date.now();
     s.createdAt = new Date().toISOString();
 
-    const greeting = `Hello, this is an automated call from ${s.bankName}. Am I speaking with ${s.customerName}? I am calling regarding your loan account ending in ${s.loanAccount}. Do you have a moment to speak?`;
+    const greeting = getInitialGreeting(s);
     s.conversationHistory = [{ role: 'model', content: greeting }];
     await speakToCustomer(sessionId, greeting);
   }
@@ -86,48 +235,11 @@ function setupAICall(server, app) {
     s.conversationHistory.push({ role: 'user', content: customerResponse });
 
     try {
-      const systemPrompt = `You are a professional loan recovery agent for ${s.bankName}.
-    Call purpose: Collect overdue loan of ₹${s.loanAmount} from ${s.customerName} (account: ${s.loanAccount}).
-    You already greeted them with: "${s.conversationHistory[0].content}"
-
-    LANGUAGE: Always reply in the same language the customer uses.
-
-    STRICT [CALL_COMPLETE] RULE:
-    - [CALL_COMPLETE] can ONLY be output after ALL of these are done:
-      a) Customer identity confirmed
-      b) Loan account discussed
-      c) Payment plan OR refusal after 3 attempts OR valid reason to end
-      d) You asked "Is there anything else I can help you with?"
-      e) Customer responded negatively to that question
-    - NEVER output [CALL_COMPLETE] in the first 3 exchanges
-    - NEVER output [CALL_COMPLETE] just because customer said yes or acknowledged
-
-    CONVERSATION FLOW:
-    Step 1 → Confirm identity
-    Step 2 → Discuss loan amount
-    Step 3 → Ask about payment status
-    Step 4 → If not paid → understand reason → negotiate
-    Step 5 → Confirm agreed plan with specific date and amount
-    Step 6 → Ask "Is there anything else I can help you with?"
-    Step 7 → On negative response → [CALL_COMPLETE]
-
-    PRIORITY HANDLING:
-    - Wrong person → apologize and [CALL_COMPLETE]
-    - Already paid → note details and [CALL_COMPLETE]
-    - Busy → get callback time and [CALL_COMPLETE]
-    - Legal/bankruptcy → escalate and [CALL_COMPLETE]
-    - Refusing payment → try 3 times before [CALL_COMPLETE]
-    - Aggressive → warn once then [CALL_COMPLETE]
-
-    STYLE: 2-3 short complete sentences. Never cut off mid sentence.
-
-    When ending output exactly on its own line:
-    [CALL_COMPLETE]
-    Do not add any JSON after it.`;
+      const systemPrompt = getSystemPrompt(s);
 
       const messages = [
         { role: 'system', content: systemPrompt },
-        ...s.conversationHistory.slice(1).map(msg => ({
+        ...s.conversationHistory.slice(1).map((msg) => ({
           role: msg.role === 'model' ? 'assistant' : 'user',
           content: msg.content
         }))
@@ -144,26 +256,36 @@ function setupAICall(server, app) {
       console.log(`[AI Call] AI: ${aiReply}`);
 
       if (aiReply.includes('[CALL_COMPLETE]')) {
-        console.log('[AI Call] Call complete — generating report...');
+        console.log('[AI Call] Call complete - generating summary...');
 
         s.durationSeconds = Math.floor((Date.now() - s.startTime) / 1000);
         s.status = 'completing';
 
-        // Generate report
-        generateReport(s, 'ai_call').then(report => {
-          if (report) {
-            s.summary = report.current_status;
+        if (s.domain === 'finance') {
+          generateReport(s, 'ai_call').then((report) => {
+            if (report) {
+              s.summary = report.current_status;
+              s.fullReport = report;
+              console.log('[Report] Generated successfully');
+            }
+          }).catch((err) => {
+            console.error('[Report] Finance report generation failed:', err.message);
+          });
+        } else {
+          generateHealthcareSummary(s).then((report) => {
+            s.summary = {
+              chief_complaint: report.chief_complaint,
+              diagnosis: report.diagnosis,
+              treatment_plan: report.treatment_plan
+            };
             s.fullReport = report;
-            console.log('[Report] Generated successfully');
-          }
-        });
+            console.log('[Healthcare Summary] Generated successfully');
+          }).catch((err) => {
+            console.error('[Healthcare Summary] Generation failed:', err.message);
+          });
+        }
 
-        const goodbyeMsg = s.lastLanguage === 'kn-IN'
-          ? 'ಧನ್ಯವಾದಗಳು. ನಿಮ್ಮ ದಿನ ಶುಭವಾಗಿರಲಿ.'
-          : s.lastLanguage === 'hi-IN'
-          ? 'धन्यवाद। आपका दिन शुभ हो।'
-          : 'Thank you for your time. We will follow up as discussed. Have a good day.';
-
+        const goodbyeMsg = getClosingMessage(s);
         await speakToCustomer(sessionId, goodbyeMsg, s.lastLanguage || 'en-IN');
 
         setTimeout(() => {
@@ -178,18 +300,17 @@ function setupAICall(server, app) {
 
       s.conversationHistory.push({ role: 'assistant', content: aiReply });
       await speakToCustomer(sessionId, aiReply, s.lastLanguage || 'en-IN');
-
     } catch (err) {
       console.error('[AI Call] Groq error:', err.message);
     }
   }
 
-  // ── TTS ─────────────────────────────────────────────────────
   function splitIntoChunks(text, maxLength = 450) {
     if (text.length <= maxLength) return [text];
     const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
     const chunks = [];
     let current = '';
+
     for (const sentence of sentences) {
       if ((current + sentence).length <= maxLength) {
         current += sentence;
@@ -198,6 +319,7 @@ function setupAICall(server, app) {
         current = sentence;
       }
     }
+
     if (current) chunks.push(current.trim());
     return chunks;
   }
@@ -206,9 +328,10 @@ function setupAICall(server, app) {
     const s = sessions[sessionId];
     const chunks = splitIntoChunks(text);
 
-    for (let i = 0; i < chunks.length; i++) {
+    for (let i = 0; i < chunks.length; i += 1) {
       const chunk = chunks[i];
       const isFinal = i === chunks.length - 1;
+
       try {
         const response = await axios.post(
           'https://api.sarvam.ai/text-to-speech',
@@ -227,6 +350,7 @@ function setupAICall(server, app) {
             }
           }
         );
+
         const audioBase64 = response.data.audios[0];
         if (s.customerWs?.readyState === WebSocket.OPEN) {
           s.customerWs.send(JSON.stringify({
@@ -235,7 +359,7 @@ function setupAICall(server, app) {
             text: chunk,
             isFinal
           }));
-          await new Promise(r => setTimeout(r, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
         }
       } catch (err) {
         console.error('[AI Call] TTS error:', err.response?.data || err.message);
@@ -243,7 +367,6 @@ function setupAICall(server, app) {
     }
   }
 
-  // ── STT ─────────────────────────────────────────────────────
   const upload = multer({ storage: multer.memoryStorage() });
 
   app.post('/transcribe-ai', upload.single('audio'), async (req, res) => {
@@ -276,13 +399,16 @@ function setupAICall(server, app) {
     }
   });
 
-  // ── Routes ───────────────────────────────────────────────────
   app.post('/create-ai-session', (req, res) => {
     const sessionId = uuidv4();
+    const domain = normalizeDomain(req.body.domain);
+
     sessions[sessionId] = {
       sessionId,
+      domain,
       customerName: req.body.customerName || 'Customer',
-      bankName: req.body.bankName || 'ABC Bank',
+      bankName: req.body.bankName || (domain === 'finance' ? 'ABC Bank' : 'VANI Care'),
+      agentName: req.body.agentName || (domain === 'finance' ? 'VANI Agent' : 'Assigned doctor'),
       loanAccount: req.body.loanAccount || req.body.loanAccountNumber || 'XXXX1234',
       loanAmount: req.body.loanAmount || req.body.outstandingAmount || '50,000',
       phoneNumber: req.body.phoneNumber || 'N/A',
@@ -300,33 +426,32 @@ function setupAICall(server, app) {
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const customerLink = `${protocol}://${host}/call/join/${sessionId}?type=ai`;
 
-    console.log(`[AI Call] Session created: ${sessionId}`);
+    console.log(`[AI Call] Session created: ${sessionId} (${domain})`);
     res.json({ sessionId, customerLink });
   });
 
   app.get('/ai-session/:id', (req, res) => {
     const s = sessions[req.params.id];
     if (!s) return res.status(404).json({ error: 'Not found' });
+
     res.json({
       status: s.status,
+      domain: s.domain,
       summary: s.summary,
       fullReport: s.fullReport,
       conversationHistory: s.conversationHistory
     });
   });
 
-  // ── Report routes ────────────────────────────────────────────
   app.get('/reports', (req, res) => {
     const reportsDir = path.join(__dirname, 'reports');
     if (!fs.existsSync(reportsDir)) return res.json({ reports: [] });
 
     const files = fs.readdirSync(reportsDir)
-      .filter(f => f.endsWith('.json'))
-      .map(f => {
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => {
         try {
-          const data = JSON.parse(
-            fs.readFileSync(path.join(reportsDir, f), 'utf8')
-          );
+          const data = JSON.parse(fs.readFileSync(path.join(reportsDir, f), 'utf8'));
           return {
             filename: f,
             customer_name: data.customer?.name,
@@ -338,7 +463,9 @@ function setupAICall(server, app) {
             escalation: data.current_status?.escalation_required,
             updated_at: data.updated_at
           };
-        } catch(e) { return null; }
+        } catch (e) {
+          return null;
+        }
       })
       .filter(Boolean)
       .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
@@ -351,6 +478,7 @@ function setupAICall(server, app) {
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Not found' });
     }
+
     res.json(JSON.parse(fs.readFileSync(filePath, 'utf8')));
   });
 
@@ -359,8 +487,10 @@ function setupAICall(server, app) {
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Not found' });
     }
+
     const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     const callIndex = req.body.call_number - 1;
+
     if (data.call_history[callIndex]) {
       data.call_history[callIndex].finance_report = {
         ...data.call_history[callIndex].finance_report,
@@ -383,24 +513,26 @@ function setupAICall(server, app) {
     if (!fs.existsSync(reportsDir)) return res.json({ scheduled_calls: [] });
 
     const all = [];
-    fs.readdirSync(reportsDir).filter(f => f.endsWith('.json')).forEach(f => {
-      try {
-        const data = JSON.parse(
-          fs.readFileSync(path.join(reportsDir, f), 'utf8')
-        );
-        data.call_history?.forEach(call => {
-          call.scheduled_calls?.forEach(sc => {
-            all.push({
-              ...sc,
-              customer_name: data.customer?.name,
-              loan_account: data.customer?.loan_account_number,
-              remaining_balance: data.current_status?.remaining_balance,
-              report_file: f
+    fs.readdirSync(reportsDir)
+      .filter((f) => f.endsWith('.json'))
+      .forEach((f) => {
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(reportsDir, f), 'utf8'));
+          data.call_history?.forEach((call) => {
+            call.scheduled_calls?.forEach((sc) => {
+              all.push({
+                ...sc,
+                customer_name: data.customer?.name,
+                loan_account: data.customer?.loan_account_number,
+                remaining_balance: data.current_status?.remaining_balance,
+                report_file: f
+              });
             });
           });
-        });
-      } catch(e) {}
-    });
+        } catch (e) {
+          // ignore malformed report
+        }
+      });
 
     all.sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time));
     res.json({ scheduled_calls: all });
