@@ -580,6 +580,7 @@ const VoiceCallPage = () => {
         bank: searchParams.get("bank") || "VANI Health Finance",
         agent: searchParams.get("agent") || "Dr. Praneeth",
     };
+    const scheduledCallId = searchParams.get("scheduledCallId");
 
     useEffect(() => {
         setPatientName(callContext.name);
@@ -608,21 +609,25 @@ const VoiceCallPage = () => {
             const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
             setCallMode("ai");
 
-            const response = await fetch(`${backendUrl}/create-ai-session`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    customerName: callContext.name,
-                    phoneNumber: callContext.phone,
-                    loanAccountNumber: callContext.id,
-                    outstandingAmount: callContext.amount,
-                    bankName: callContext.bank,
-                    domain: callContext.domain,
-                    agentName: callContext.agent,
-                }),
-            });
+            const response = scheduledCallId
+                ? await fetch(`${backendUrl}/scheduled-call-session/${scheduledCallId}`)
+                : await fetch(`${backendUrl}/create-ai-session`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        customerName: callContext.name,
+                        phoneNumber: callContext.phone,
+                        loanAccountNumber: callContext.id,
+                        outstandingAmount: callContext.amount,
+                        bankName: callContext.bank,
+                        domain: callContext.domain,
+                        agentName: callContext.agent,
+                    }),
+                });
 
-            if (!response.ok) throw new Error("Failed to create AI session");
+            if (!response.ok) {
+                throw new Error(scheduledCallId ? "Failed to get scheduled AI session" : "Failed to create AI session");
+            }
 
             const data = await response.json();
             setCustomerLink(data.customerLink);
@@ -634,6 +639,11 @@ const VoiceCallPage = () => {
             alert("Failed to initiate AI call");
         }
     };
+
+    useEffect(() => {
+        if (!scheduledCallId || callStatus !== "idle") return;
+        void handleAIAutoCall();
+    }, [scheduledCallId, callStatus]);
 
     const handleManualCall = async () => {
         try {

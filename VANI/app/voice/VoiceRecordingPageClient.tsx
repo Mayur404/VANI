@@ -1,18 +1,23 @@
 "use client";
 
 import Visualizer from "@/components/voice/visualizer";
+import useVoiceRecording from "@/hooks/useVoiceRecording";
 import useRecordingStore from "@/store/useRecordingStore";
 import Image from "next/image";
 import { useEffect, useRef } from "react";
 
 type VoicePageData = Awaited<ReturnType<typeof import("@/lib/services/voice.service").getVoicePageData>>;
 
+// ─── Transcript Panel ──────────────────────────────────────────
+
 const TranscriptPanel = ({
   isRecording,
   transcriptLines,
+  isProcessing,
 }: {
   isRecording: boolean;
   transcriptLines: VoicePageData["transcript"];
+  isProcessing: boolean;
 }) => {
   const transcript = useRecordingStore((state) => state.transcript);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -37,15 +42,23 @@ const TranscriptPanel = ({
     <div className="flex flex-col h-full bg-[#090909]">
       <div className="flex items-center justify-between p-4 border-b border-[#9d9d9d]">
         <h1 className="font-bold text-white text-2xl font-oxanium tracking-wide">LIVE TRANSCRIPT</h1>
-        {isRecording && (
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-green-500 text-xs font-mono tracking-widest">LIVE</span>
-          </div>
-        )}
-        {!isRecording && lines.length > 0 && (
-          <span className="text-[#475569] text-xs font-mono">{lines.length} lines</span>
-        )}
+        <div className="flex items-center gap-2">
+          {isRecording && (
+            <>
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-green-500 text-xs font-mono tracking-widest">LIVE</span>
+            </>
+          )}
+          {isProcessing && !isRecording && (
+            <>
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-amber-400 text-xs font-mono tracking-widest">PROCESSING</span>
+            </>
+          )}
+          {!isRecording && !isProcessing && lines.length > 0 && (
+            <span className="text-[#475569] text-xs font-mono">{lines.length} lines</span>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
@@ -89,12 +102,24 @@ const TranscriptPanel = ({
   );
 };
 
+// ─── Extraction Panel ──────────────────────────────────────────
+
 const ExtractionPanel = ({
   isRecording,
   extractionData,
+  onSave,
+  isSaving,
+  isProcessing,
+  reportSaved,
+  saveError,
 }: {
   isRecording: boolean;
   extractionData: VoicePageData["extraction"];
+  onSave: () => void;
+  isSaving: boolean;
+  isProcessing: boolean;
+  reportSaved: boolean;
+  saveError: string | null;
 }) => {
   const extraction = useRecordingStore((state) => state.extraction);
   const updateExtraction = useRecordingStore((state) => state.updateExtraction);
@@ -188,18 +213,42 @@ const ExtractionPanel = ({
         </div>
 
         {!isRecording && (
-          <button
-            className={`w-full py-3 rounded-xl font-semibold font-outfit text-white transition-all duration-200 mt-2 ${
-              !isSessionReady ? "bg-[#2b7fff]" : "bg-[#1f1f1f]"
-            }`}
-          >
-            Approve & Save Report
-          </button>
+          <div className="flex flex-col gap-2 mt-2">
+            <button
+              onClick={onSave}
+              disabled={isSaving || reportSaved || isSessionReady || isProcessing}
+              className={`w-full py-3 rounded-xl font-semibold font-outfit text-white transition-all duration-200 ${
+                reportSaved
+                  ? "bg-[#10B981]"
+                  : isSaving || isProcessing
+                  ? "bg-[#1f1f1f] opacity-60 cursor-wait"
+                  : isSessionReady
+                  ? "bg-[#1f1f1f] opacity-40 cursor-not-allowed"
+                  : "bg-[#2b7fff] hover:bg-[#1a6ae8] active:scale-[0.98]"
+              }`}
+            >
+              {reportSaved
+                ? "✓ Report Saved"
+                : isSaving
+                ? "Saving..."
+                : "Approve & Save Report"}
+            </button>
+            {saveError && (
+              <p className="text-red-400 text-xs font-mono text-center">{saveError}</p>
+            )}
+            {reportSaved && (
+              <p className="text-green-400 text-xs font-mono text-center">
+                Report saved to database successfully
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 };
+
+// ─── Start Screen ──────────────────────────────────────────────
 
 const StartScreen = ({ sessionName }: { sessionName?: string | null }) => {
   const setHasStarted = useRecordingStore((state) => state.setHasStarted);
@@ -241,10 +290,14 @@ const StartScreen = ({ sessionName }: { sessionName?: string | null }) => {
   );
 };
 
+// ─── Main Page ─────────────────────────────────────────────────
+
 const VoiceRecordingPageClient = ({ pageData }: { pageData: VoicePageData | null }) => {
   const isRecording = useRecordingStore((state) => state.isRecording);
   const hasStarted = useRecordingStore((state) => state.hasStarted);
   const sessionReady = useRecordingStore((state) => state.sessionReady);
+
+  const voice = useVoiceRecording();
 
   const showVisualizer = sessionReady || isRecording;
   const showReviewLayout = hasStarted && !isRecording && !sessionReady;
@@ -265,7 +318,11 @@ const VoiceRecordingPageClient = ({ pageData }: { pageData: VoicePageData | null
           className="h-[90vh] bg-[#0f0e10] rounded-2xl overflow-hidden transition-all duration-500 ease-in-out"
           style={{ width: showReviewLayout ? "48%" : "25%" }}
         >
-          <TranscriptPanel isRecording={isRecording} transcriptLines={pageData?.transcript ?? []} />
+          <TranscriptPanel
+            isRecording={isRecording}
+            transcriptLines={pageData?.transcript ?? []}
+            isProcessing={voice.isProcessing}
+          />
         </div>
 
         <div
@@ -276,16 +333,35 @@ const VoiceRecordingPageClient = ({ pageData }: { pageData: VoicePageData | null
             pointerEvents: showVisualizer ? "auto" : "none",
           }}
         >
-          <Visualizer showButton={true} />
+          <Visualizer
+            showButton={true}
+            stream={voice.micStream}
+            onStart={voice.startRecording}
+            onStop={voice.stopRecording}
+          />
         </div>
 
         <div
           className="h-[90vh] bg-[#0f0e10] rounded-2xl overflow-hidden transition-all duration-500 ease-in-out"
           style={{ width: showReviewLayout ? "48%" : "25%" }}
         >
-          <ExtractionPanel isRecording={isRecording} extractionData={pageData?.extraction ?? null} />
+          <ExtractionPanel
+            isRecording={isRecording}
+            extractionData={pageData?.extraction ?? null}
+            onSave={() => voice.saveReport()}
+            isSaving={voice.isSaving}
+            isProcessing={voice.isProcessing}
+            reportSaved={voice.reportSaved}
+            saveError={voice.error}
+          />
         </div>
       </div>
+
+      {voice.error && isRecording && (
+        <div className="fixed bottom-4 right-4 bg-red-900/80 text-red-200 px-4 py-2 rounded-lg font-mono text-sm">
+          {voice.error}
+        </div>
+      )}
     </div>
   );
 };

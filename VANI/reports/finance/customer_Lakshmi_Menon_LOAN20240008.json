@@ -1,0 +1,255 @@
+{
+  "customer": {
+    "id": null,
+    "name": "Lakshmi Menon",
+    "phone_number": "9900112300",
+    "loan_account_number": "LOAN20240008",
+    "outstanding_amount": 25000,
+    "bank": "VANI Finance",
+    "due_date": null
+  },
+  "current_status": {
+    "total_paid": 0,
+    "remaining_balance": 25000,
+    "total_promised": 25000,
+    "last_call_date": "2026-04-06",
+    "last_payment_status": "promised",
+    "next_scheduled_call": "2026-04-09T10:00:00Z",
+    "total_calls": 2,
+    "escalation_required": false
+  },
+  "call_history": [
+    {
+      "session": {
+        "id": "d9f2ff14-7096-4220-8d84-9645ce43dd13",
+        "domain": "finance",
+        "mode": "ai_call",
+        "status": "completed",
+        "language_detected": "hi-IN",
+        "duration_seconds": 111,
+        "created_at": "2026-04-06T10:23:56.553Z",
+        "completed_at": "2026-04-06T10:25:48.719Z"
+      },
+      "finance_report": {
+        "id": "fr-1775471148719",
+        "session_id": "d9f2ff14-7096-4220-8d84-9645ce43dd13",
+        "customer_id": null,
+        "identity_verified": true,
+        "loan_account_confirmed": true,
+        "payment_status": "promised",
+        "amount_paid": null,
+        "payment_date": null,
+        "payment_mode": "credit_card",
+        "payer_type": "self",
+        "payer_name": "Lakshmi Menon",
+        "payer_relationship": null,
+        "payer_contact": null,
+        "reason_for_nonpayment": null,
+        "promise_to_pay_date": "tomorrow's date",
+        "executive_notes": "Customer promised to pay the full amount of Rs.25000 tomorrow before 5 PM using a credit card. This is the first call.",
+        "call_attempt_number": 1,
+        "customer_language": "hi-IN",
+        "escalation_required": false,
+        "next_action": "follow_up",
+        "previous_promise_kept": null,
+        "is_edited": false,
+        "edited_by": null,
+        "created_at": "2026-04-06T10:25:48.719Z",
+        "updated_at": "2026-04-06T10:25:48.719Z"
+      },
+      "transcript": [
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "ai",
+          "text": "Hello, this is an automated call from VANI Finance. Am I speaking with Lakshmi Menon? I am calling regarding your loan account ending in LOAN20240008. Do you have a moment to speak?",
+          "language": "hi-IN",
+          "timestamp_seconds": 0
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "customer",
+          "text": "Yes, I have a moment to speak. I am Lakshmi.",
+          "language": "hi-IN",
+          "timestamp_seconds": 5
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "ai",
+          "text": "I've confirmed your identity, Ms. Lakshmi. Your loan account LOAN20240008 is currently overdue with a balance of Rs.25000. Can you please tell me about the status of this loan and when we can expect the payment?",
+          "language": "hi-IN",
+          "timestamp_seconds": 10
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "customer",
+          "text": "I will pay tomorrow before 5 PM.",
+          "language": "hi-IN",
+          "timestamp_seconds": 15
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "ai",
+          "text": "I've noted that you will be making the payment of Rs.25000 tomorrow before 5 PM. Can you please confirm if you will be paying the full amount in one go or would you like to discuss a payment plan?",
+          "language": "hi-IN",
+          "timestamp_seconds": 20
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "customer",
+          "text": "I will be paying in one go using a credit card.",
+          "language": "hi-IN",
+          "timestamp_seconds": 25
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "ai",
+          "text": "I've confirmed that you will be paying the full amount of Rs.25000 in one go using a credit card tomorrow before 5 PM. Is there anything else I can help you with?",
+          "language": "hi-IN",
+          "timestamp_seconds": 30
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "customer",
+          "text": "नो।",
+          "language": "hi-IN",
+          "timestamp_seconds": 35
+        }
+      ],
+      "scheduled_calls": [
+        {
+          "customer_id": null,
+          "origin_session_id": "d9f2ff14-7096-4220-8d84-9645ce43dd13",
+          "phone_number": "9900112300",
+          "scheduled_time": "tomorrow's date at 10:00:00Z",
+          "reason": "Follow up on promised payment",
+          "status": "pending"
+        }
+      ],
+      "alerts": []
+    },
+    {
+      "session": {
+        "id": "7e898cfd-08e6-4985-a5dd-a9fd0ef60b51",
+        "domain": "finance",
+        "mode": "ai_call",
+        "status": "completed",
+        "language_detected": "hi-IN",
+        "duration_seconds": 159,
+        "created_at": "2026-04-06T10:26:53.570Z",
+        "completed_at": "2026-04-06T10:29:34.962Z"
+      },
+      "finance_report": {
+        "id": "fr-1775471374962",
+        "session_id": "7e898cfd-08e6-4985-a5dd-a9fd0ef60b51",
+        "customer_id": null,
+        "identity_verified": true,
+        "loan_account_confirmed": true,
+        "payment_status": "promised",
+        "amount_paid": null,
+        "payment_date": null,
+        "payment_mode": "credit_card",
+        "payer_type": "self",
+        "payer_name": "Lakshmi Menon",
+        "payer_relationship": null,
+        "payer_contact": null,
+        "reason_for_nonpayment": null,
+        "promise_to_pay_date": "2026-04-09",
+        "executive_notes": "Customer had previously promised to pay the full amount of Rs.25000 on 2026-04-07, but has now revised the promise to 2026-04-09. This is the second call and the customer has confirmed their identity and loan account details.",
+        "call_attempt_number": 2,
+        "customer_language": "hi-IN",
+        "escalation_required": false,
+        "next_action": "follow_up",
+        "previous_promise_kept": false,
+        "is_edited": false,
+        "edited_by": null,
+        "created_at": "2026-04-06T10:29:34.962Z",
+        "updated_at": "2026-04-06T10:29:34.962Z"
+      },
+      "transcript": [
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "ai",
+          "text": "Hello, this is an automated call from VANI Finance. Am I speaking with Lakshmi Menon? I am calling regarding your loan account ending in LOAN20240008. Do you have a moment to speak?",
+          "language": "hi-IN",
+          "timestamp_seconds": 0
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "customer",
+          "text": "Yes, I have a moment to speak. Actually, I wanted to tell you that I will pay the loan 2 days later before I had said only tomorrow. That's all.",
+          "language": "hi-IN",
+          "timestamp_seconds": 5
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "ai",
+          "text": "I appreciate your honesty, Ms. Menon. However, I need to confirm your identity to proceed with the discussion about your loan account LOAN20240008. Can you please confirm your date of birth to verify your identity?",
+          "language": "hi-IN",
+          "timestamp_seconds": 10
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "customer",
+          "text": "Yes, I was born on 7th October 1996.",
+          "language": "hi-IN",
+          "timestamp_seconds": 15
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "ai",
+          "text": "Your identity has been confirmed, Ms. Menon. Now, let's discuss your loan account LOAN20240008, which has an outstanding amount of Rs. 25000 that is currently overdue. Can you please tell me about the current status of the payment?",
+          "language": "hi-IN",
+          "timestamp_seconds": 20
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "customer",
+          "text": "I will pay the loan 2 days later, 5 PM with a credit card in one go.",
+          "language": "hi-IN",
+          "timestamp_seconds": 25
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "ai",
+          "text": "I have noted that you plan to pay the overdue loan amount of Rs. 25000 in full, 2 days later at 5 PM, using a credit card. Can you please confirm that you have sufficient funds available on the credit card to make this payment, and would you like to receive a confirmation call after the payment is made to update your account status?",
+          "language": "hi-IN",
+          "timestamp_seconds": 30
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "customer",
+          "text": "Yes, I have enough funds. No, I don't want any confirmation call. Thank you.",
+          "language": "hi-IN",
+          "timestamp_seconds": 35
+        },
+        {
+          "speaker_label": "SPEAKER_1",
+          "speaker_role": "ai",
+          "text": "I have updated your loan account LOAN20240008 with the planned payment of Rs. 25000. Is there anything else I can help you with?",
+          "language": "hi-IN",
+          "timestamp_seconds": 40
+        },
+        {
+          "speaker_label": "SPEAKER_2",
+          "speaker_role": "customer",
+          "text": "नो नो।",
+          "language": "hi-IN",
+          "timestamp_seconds": 45
+        }
+      ],
+      "scheduled_calls": [
+        {
+          "customer_id": null,
+          "origin_session_id": "7e898cfd-08e6-4985-a5dd-a9fd0ef60b51",
+          "phone_number": "9900112300",
+          "scheduled_time": "2026-04-09T10:00:00Z",
+          "reason": "Follow up on promised payment",
+          "status": "pending"
+        }
+      ],
+      "alerts": []
+    }
+  ],
+  "created_at": "2026-04-06T10:25:48.719Z",
+  "updated_at": "2026-04-06T10:29:34.962Z"
+}

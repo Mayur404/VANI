@@ -16,9 +16,13 @@ const BAR_COLOR = '#10b981';
 const Visualizer = ({
     showButton,
     stream,
+    onStart,
+    onStop,
 }: {
     showButton: boolean;
     stream?: MediaStream | null;
+    onStart?: () => void;
+    onStop?: () => void;
 }) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -70,10 +74,8 @@ const Visualizer = ({
             dataRef.current = null;
             cancelAnimation();
             clearCanvas();
-            setIsRecording(false);
-            setSessionReady(false);
         },
-        [cancelAnimation, clearCanvas, setIsRecording, setSessionReady],
+        [cancelAnimation, clearCanvas],
     );
 
     const drawFrame = useCallback(() => {
@@ -148,58 +150,55 @@ const Visualizer = ({
             cancelAnimation();
             animationFrameRef.current = requestAnimationFrame(drawFrame);
 
-            setSessionReady(true);
-            setIsRecording(true);
             setError('');
         },
-        [cancelAnimation, drawFrame, setIsRecording, setSessionReady],
+        [cancelAnimation, drawFrame],
     );
 
-    const startRecording = useCallback(async () => {
-        if (stream) {
-            await startFromStream(stream);
+    const handleStart = useCallback(async () => {
+        if (onStart) {
+            // External handler owns mic + recording state; we just visualize.
+            onStart();
             return;
         }
 
+        // Fallback: self-managed mic for standalone usage
         try {
-            const micStream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-                video: false,
-            });
+            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             await startFromStream(micStream);
+            setSessionReady(true);
+            setIsRecording(true);
         } catch (err) {
             console.error('Mic error:', err);
             setError('Could not access microphone. Check permissions.');
         }
-    }, [startFromStream, stream]);
+    }, [onStart, startFromStream, setIsRecording, setSessionReady]);
 
-    const stopRecording = useCallback(() => {
+    const handleStop = useCallback(() => {
+        if (onStop) {
+            onStop();
+        }
         cleanupAudio(Boolean(stream));
-    }, [cleanupAudio, stream]);
+        setIsRecording(false);
+        setSessionReady(false);
+    }, [onStop, cleanupAudio, stream, setIsRecording, setSessionReady]);
+
+    // When external stream arrives (from the hook), start visualizing
+    useEffect(() => {
+        if (stream && stream !== streamRef.current) {
+            void startFromStream(stream);
+        }
+
+        if (!stream && streamRef.current) {
+            cleanupAudio(false);
+        }
+    }, [stream, startFromStream, cleanupAudio]);
 
     useEffect(() => {
         return () => {
             cleanupAudio(Boolean(stream));
         };
     }, [cleanupAudio, stream]);
-
-    useEffect(() => {
-        if (showButton) return;
-
-        if (isRecording && stream && stream !== streamRef.current) {
-            void startFromStream(stream);
-            return;
-        }
-
-        if (isRecording && !streamRef.current) {
-            void startRecording();
-            return;
-        }
-
-        if (!isRecording && streamRef.current) {
-            stopRecording();
-        }
-    }, [isRecording, showButton, startFromStream, startRecording, stopRecording, stream]);
 
     const defaultText = useMemo(() => {
         if (error) return error;
@@ -217,7 +216,7 @@ const Visualizer = ({
             )}
             {showButton && (
                 <button
-                    onClick={isRecording ? stopRecording : startRecording}
+                    onClick={isRecording ? handleStop : handleStart}
                     className={`h-fit w-fit p-4 m-4 ${isRecording ? 'bg-[#dc2626]' : 'bg-[#1f1f1f]'} text-[#dadada] text-2xl font-semibold rounded-2xl font-outfit`}
                     type="button"
                 >

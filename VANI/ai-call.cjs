@@ -7,11 +7,52 @@ const fetch = require('node-fetch');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const mariadb = require('mariadb');
 const Groq = require('groq-sdk');
-const { generateReport } = require('./report-generator.cjs');
+const { generateFinanceReport, generateHealthcareReport } = require('./report-generator.cjs');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const sessions = {};
+const scheduledCallSessions = new Map();
+let schedulerStarted = false;
+let dbPool = null;
+
+function getDbConfig() {
+  if (process.env.DATABASE_HOST && process.env.DATABASE_USER && process.env.DATABASE_NAME) {
+    return {
+      host: process.env.DATABASE_HOST,
+      port: process.env.DATABASE_PORT ? Number(process.env.DATABASE_PORT) : 3306,
+      user: process.env.DATABASE_USER,
+      password: process.env.DATABASE_PASSWORD,
+      database: process.env.DATABASE_NAME,
+      connectionLimit: 5,
+      allowPublicKeyRetrieval: true,
+    };
+  }
+
+  if (process.env.DATABASE_URL) {
+    const url = new URL(process.env.DATABASE_URL);
+    return {
+      host: url.hostname,
+      port: url.port ? Number(url.port) : 3306,
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      database: url.pathname.replace(/^\//, ''),
+      connectionLimit: 5,
+      allowPublicKeyRetrieval: true,
+    };
+  }
+
+  throw new Error('Missing database configuration for scheduled call automation.');
+}
+
+function getDbPool() {
+  if (!dbPool) {
+    dbPool = mariadb.createPool(getDbConfig());
+  }
+
+  return dbPool;
+}
 
 function normalizeDomain(value) {
   return String(value || '').toLowerCase() === 'finance' ? 'finance' : 'healthcare';
@@ -125,50 +166,185 @@ function buildConversationText(session) {
     .join('\n');
 }
 
-async function generateHealthcareSummary(session) {
-  const transcriptText = buildConversationText(session);
-
-  const prompt = `You are extracting a concise healthcare summary from a doctor-patient support conversation.
-Return ONLY valid JSON with this exact shape:
-{
-  "chief_complaint": string or null,
-  "duration": string or null,
-  "associated_symptoms": string[],
-  "past_medical_history": string or null,
-  "medications": string or null,
-  "diagnosis": string or null,
-  "treatment_plan": string or null,
-  "sentiment": string,
-  "language": string
+function getBaseUrl(req) {
+  const protocol = req?.headers?.['x-forwarded-proto'] || 'http';
+  const host = req?.headers?.['x-forwarded-host'] || req?.headers?.host || `localhost:${process.env.PORT || 4000}`;
+  return `${protocol}://${host}`;
 }
 
-Rules:
-- diagnosis should be a working assessment or prior diagnosis only if mentioned, otherwise null
-- treatment_plan should be the doctor-advice or next step mentioned, otherwise null
-- associated_symptoms should be short phrases
-- language should be the conversation language code if obvious, otherwise "${session.lastLanguage || 'en-IN'}"
+function createAISessionRecord(payload, baseUrl) {
+  const sessionId = uuidv4();
+  const domain = normalizeDomain(payload.domain);
 
-Conversation:
-${transcriptText}`;
+  sessions[sessionId] = {
+    sessionId,
+    domain,
+    customerName: payload.customerName || 'Customer',
+    bankName: payload.bankName || (domain === 'finance' ? 'ABC Bank' : 'VANI Care'),
+    agentName: payload.agentName || (domain === 'finance' ? 'VANI Agent' : 'Assigned doctor'),
+    loanAccount: payload.loanAccount || payload.loanAccountNumber || 'XXXX1234',
+    loanAmount: payload.loanAmount || payload.outstandingAmount || '50,000',
+    phoneNumber: payload.phoneNumber || 'N/A',
+    conversationHistory: [],
+    status: 'waiting',
+    summary: null,
+    fullReport: null,
+    customerWs: null,
+    startTime: null,
+    createdAt: null,
+    lastLanguage: 'en-IN',
+    scheduledCallId: payload.scheduledCallId ? Number(payload.scheduledCallId) : null,
+    autoTriggered: Boolean(payload.autoTriggered),
+  };
 
-  const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 500,
-    temperature: 0.1
-  });
-
-  const raw = response.choices[0].message.content
-    .replace(/```json/g, '')
-    .replace(/```/g, '')
-    .trim();
-
-  return JSON.parse(raw);
+  return {
+    sessionId,
+    customerLink: `${baseUrl}/call/join/${sessionId}?type=ai`,
+  };
 }
+
+async function getDueScheduledCalls() {
+  const connection = await getDbPool().getConnection();
+  try {
+    const rows = await connection.query(
+      `SELECT
+         sc.id,
+         sc.customer_id,
+         sc.phone_number,
+         sc.scheduled_time,
+         sc.reason,
+         sc.status,
+         c.name AS customer_name,
+         c.loan_account_number,
+         c.outstanding_amount,
+         s.id AS session_id,
+         u.name AS agent_name,
+         u.organisation AS organisation
+       FROM scheduled_calls sc
+       LEFT JOIN customers c ON c.id = sc.customer_id
+       LEFT JOIN sessions s ON s.id = sc.origin_session_id
+       LEFT JOIN users u ON u.id = s.user_id
+       WHERE sc.status = 'pending' AND sc.scheduled_time <= NOW()
+       ORDER BY sc.scheduled_time ASC`
+    );
+
+    return Array.isArray(rows) ? rows : [];
+  } finally {
+    connection.release();
+  }
+}
+
+async function getScheduledCallRecordById(scheduledCallId) {
+  const connection = await getDbPool().getConnection();
+  try {
+    const rows = await connection.query(
+      `SELECT
+         sc.id,
+         sc.customer_id,
+         sc.phone_number,
+         sc.scheduled_time,
+         sc.reason,
+         sc.status,
+         c.name AS customer_name,
+         c.loan_account_number,
+         c.outstanding_amount,
+         s.id AS session_id,
+         u.name AS agent_name,
+         u.organisation AS organisation
+       FROM scheduled_calls sc
+       LEFT JOIN customers c ON c.id = sc.customer_id
+       LEFT JOIN sessions s ON s.id = sc.origin_session_id
+       LEFT JOIN users u ON u.id = s.user_id
+       WHERE sc.id = ?
+       LIMIT 1`,
+      [scheduledCallId],
+    );
+
+    return Array.isArray(rows) ? rows[0] || null : null;
+  } finally {
+    connection.release();
+  }
+}
+
+async function markScheduledCallStatus(scheduledCallId, status) {
+  const connection = await getDbPool().getConnection();
+  try {
+    await connection.query(
+      'UPDATE scheduled_calls SET status = ? WHERE id = ?',
+      [status, scheduledCallId],
+    );
+  } finally {
+    connection.release();
+  }
+}
+
+function normalizeOutstandingAmount(value) {
+  if (value == null) return '0';
+  return typeof value === 'object' && typeof value.toString === 'function'
+    ? value.toString()
+    : String(value);
+}
+
+async function ensureScheduledCallSession({ scheduledCall, baseUrl }) {
+  const existing = scheduledCallSessions.get(Number(scheduledCall.id));
+  if (existing && sessions[existing.sessionId]) {
+    return existing;
+  }
+
+  const created = createAISessionRecord(
+    {
+      customerName: scheduledCall.customer_name || 'Customer',
+      phoneNumber: scheduledCall.phone_number || 'N/A',
+      loanAccountNumber: scheduledCall.loan_account_number || `scheduled-${scheduledCall.id}`,
+      outstandingAmount: normalizeOutstandingAmount(scheduledCall.outstanding_amount),
+      bankName: scheduledCall.organisation || 'VANI Finance',
+      domain: 'finance',
+      agentName: scheduledCall.agent_name || 'VANI Agent',
+      scheduledCallId: scheduledCall.id,
+      autoTriggered: true,
+    },
+    baseUrl,
+  );
+
+  const runtime = {
+    scheduledCallId: Number(scheduledCall.id),
+    ...created,
+    triggeredAt: new Date().toISOString(),
+  };
+
+  scheduledCallSessions.set(Number(scheduledCall.id), runtime);
+  await markScheduledCallStatus(Number(scheduledCall.id), 'initiated');
+  console.log(`[Scheduled Call] Auto-triggered AI session for scheduled call #${scheduledCall.id}`);
+  return runtime;
+}
+
+function startScheduledCallWatcher() {
+  if (schedulerStarted) return;
+  schedulerStarted = true;
+
+  const poll = async () => {
+    try {
+      const dueCalls = await getDueScheduledCalls();
+      const baseUrl = process.env.NGROK_URL || `http://localhost:${process.env.PORT || 4000}`;
+      for (const scheduledCall of dueCalls) {
+        await ensureScheduledCallSession({ scheduledCall, baseUrl });
+      }
+    } catch (error) {
+      console.error('[Scheduled Call] Watcher error:', error.message);
+    }
+  };
+
+  void poll();
+  setInterval(() => {
+    void poll();
+  }, 30000);
+}
+
 
 function setupAICall(server, app) {
   const { WebSocketServer } = require('ws');
   const wss = new WebSocketServer({ noServer: true });
+  startScheduledCallWatcher();
 
   server.on('upgrade', (request, socket, head) => {
     const url = new URL(request.url, 'http://localhost');
@@ -211,6 +387,11 @@ function setupAICall(server, app) {
         console.log(`[AI Call] Customer ended call: ${sessionId}`);
         sessions[sessionId].status = 'ended';
         sessions[sessionId].customerWs = null;
+        if (sessions[sessionId].scheduledCallId) {
+          markScheduledCallStatus(sessions[sessionId].scheduledCallId, 'completed').catch((err) => {
+            console.error('[Scheduled Call] Failed to mark completed:', err.message);
+          });
+        }
       }
     });
 
@@ -262,26 +443,28 @@ function setupAICall(server, app) {
         s.status = 'completing';
 
         if (s.domain === 'finance') {
-          generateReport(s, 'ai_call').then((report) => {
+          generateFinanceReport(s, 'ai_call').then((report) => {
             if (report) {
               s.summary = report.current_status;
               s.fullReport = report;
-              console.log('[Report] Generated successfully');
+              console.log('[Finance Report] Generated successfully');
             }
           }).catch((err) => {
-            console.error('[Report] Finance report generation failed:', err.message);
+            console.error('[Finance Report] Generation failed:', err.message);
           });
         } else {
-          generateHealthcareSummary(s).then((report) => {
-            s.summary = {
-              chief_complaint: report.chief_complaint,
-              diagnosis: report.diagnosis,
-              treatment_plan: report.treatment_plan
-            };
-            s.fullReport = report;
-            console.log('[Healthcare Summary] Generated successfully');
+          generateHealthcareReport(s, 'ai_call').then((report) => {
+            if (report) {
+              s.summary = {
+                chief_complaint: report.healthcare_report?.chief_complaint,
+                diagnosis: report.healthcare_report?.diagnosis,
+                treatment_plan: report.healthcare_report?.treatment_plan
+              };
+              s.fullReport = report;
+              console.log('[Healthcare Report] Generated successfully');
+            }
           }).catch((err) => {
-            console.error('[Healthcare Summary] Generation failed:', err.message);
+            console.error('[Healthcare Report] Generation failed:', err.message);
           });
         }
 
@@ -294,6 +477,11 @@ function setupAICall(server, app) {
             s.customerWs.close();
           }
           s.status = 'ended';
+          if (s.scheduledCallId) {
+            markScheduledCallStatus(s.scheduledCallId, 'completed').catch((err) => {
+              console.error('[Scheduled Call] Failed to mark completed:', err.message);
+            });
+          }
         }, 4000);
         return;
       }
@@ -400,34 +588,45 @@ function setupAICall(server, app) {
   });
 
   app.post('/create-ai-session', (req, res) => {
-    const sessionId = uuidv4();
-    const domain = normalizeDomain(req.body.domain);
-
-    sessions[sessionId] = {
-      sessionId,
-      domain,
-      customerName: req.body.customerName || 'Customer',
-      bankName: req.body.bankName || (domain === 'finance' ? 'ABC Bank' : 'VANI Care'),
-      agentName: req.body.agentName || (domain === 'finance' ? 'VANI Agent' : 'Assigned doctor'),
-      loanAccount: req.body.loanAccount || req.body.loanAccountNumber || 'XXXX1234',
-      loanAmount: req.body.loanAmount || req.body.outstandingAmount || '50,000',
-      phoneNumber: req.body.phoneNumber || 'N/A',
-      conversationHistory: [],
-      status: 'waiting',
-      summary: null,
-      fullReport: null,
-      customerWs: null,
-      startTime: null,
-      createdAt: null,
-      lastLanguage: 'en-IN'
-    };
-
-    const protocol = req.headers['x-forwarded-proto'] || 'http';
-    const host = req.headers['x-forwarded-host'] || req.headers.host;
-    const customerLink = `${protocol}://${host}/call/join/${sessionId}?type=ai`;
+    const baseUrl = getBaseUrl(req);
+    const { sessionId, customerLink } = createAISessionRecord(req.body || {}, baseUrl);
+    const domain = normalizeDomain(req.body?.domain);
 
     console.log(`[AI Call] Session created: ${sessionId} (${domain})`);
     res.json({ sessionId, customerLink });
+  });
+
+  app.get('/scheduled-call-session/:id', async (req, res) => {
+    try {
+      const scheduledCallId = Number(req.params.id);
+      if (!Number.isInteger(scheduledCallId)) {
+        return res.status(400).json({ error: 'Invalid scheduled call id' });
+      }
+
+      const existing = scheduledCallSessions.get(scheduledCallId);
+      if (existing && sessions[existing.sessionId]) {
+        return res.json({ ...existing, status: sessions[existing.sessionId].status });
+      }
+
+      const scheduledCall = await getScheduledCallRecordById(scheduledCallId);
+      if (!scheduledCall) {
+        return res.status(404).json({ error: 'Scheduled call not found' });
+      }
+
+      if (!['pending', 'initiated'].includes(String(scheduledCall.status))) {
+        return res.status(400).json({ error: 'Scheduled call is not active' });
+      }
+
+      const runtime = await ensureScheduledCallSession({
+        scheduledCall,
+        baseUrl: getBaseUrl(req),
+      });
+
+      return res.json({ ...runtime, status: sessions[runtime.sessionId]?.status || 'waiting' });
+    } catch (error) {
+      console.error('[Scheduled Call] Session fetch error:', error);
+      return res.status(500).json({ error: error.message });
+    }
   });
 
   app.get('/ai-session/:id', (req, res) => {
@@ -444,7 +643,7 @@ function setupAICall(server, app) {
   });
 
   app.get('/reports', (req, res) => {
-    const reportsDir = path.join(__dirname, 'reports');
+    const reportsDir = path.join(__dirname, 'reports', 'finance');
     if (!fs.existsSync(reportsDir)) return res.json({ reports: [] });
 
     const files = fs.readdirSync(reportsDir)
@@ -474,7 +673,7 @@ function setupAICall(server, app) {
   });
 
   app.get('/reports/:filename', (req, res) => {
-    const filePath = path.join(__dirname, 'reports', req.params.filename);
+    const filePath = path.join(__dirname, 'reports', 'finance', req.params.filename);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Not found' });
     }
@@ -483,7 +682,7 @@ function setupAICall(server, app) {
   });
 
   app.put('/reports/:filename', (req, res) => {
-    const filePath = path.join(__dirname, 'reports', req.params.filename);
+    const filePath = path.join(__dirname, 'reports', 'finance', req.params.filename);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Not found' });
     }
@@ -509,7 +708,7 @@ function setupAICall(server, app) {
   });
 
   app.get('/scheduled-calls', (req, res) => {
-    const reportsDir = path.join(__dirname, 'reports');
+    const reportsDir = path.join(__dirname, 'reports', 'finance');
     if (!fs.existsSync(reportsDir)) return res.json({ scheduled_calls: [] });
 
     const all = [];

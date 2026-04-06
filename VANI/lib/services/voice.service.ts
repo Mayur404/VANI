@@ -1,6 +1,8 @@
 import { prisma } from "../prisma";
 import { parseJsonArray, toTitleCase } from "./basic.service";
 
+const toPlainJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
 export const getRecentVoiceSessions = async ({
   domain,
   limit = 10,
@@ -116,8 +118,8 @@ export const getVoicePageData = async (sessionId: number) => {
   ]);
 
   return {
-    session,
-    transcript,
-    extraction,
+    session: session ? toPlainJson(session) : null,
+    transcript: toPlainJson(transcript),
+    extraction: extraction ? toPlainJson(extraction) : null,
   };
 };

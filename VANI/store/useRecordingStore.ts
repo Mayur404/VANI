@@ -29,12 +29,23 @@ interface TranscriptLine {
 interface ExtractionData {
     chief_complaint: string | null;
     duration: string | null;
+    severity: string | null;
     associated_symptoms: string[];
     past_medical_history: string | null;
     medications: string | null;
+    current_medications: string[];
+    allergies: string[];
+    clinical_observations: string | null;
     diagnosis: string | null;
     treatment_plan: string | null;
+    risk_indicators: string[];
+    ent_findings: string | null;
+    pregnancy_data: string | null;
+    injury_details: string | null;
+    mobility_status: string | null;
+    immunization_given: string[];
     sentiment: string;
+    live_schema_report: Record<string, unknown> | null;
 }
 
 interface RecordingState {
@@ -75,12 +86,23 @@ interface RecordingState {
 const defaultExtraction: ExtractionData = {
     chief_complaint: null,
     duration: null,
+    severity: null,
     associated_symptoms: [],
     past_medical_history: null,
     medications: null,
+    current_medications: [],
+    allergies: [],
+    clinical_observations: null,
     diagnosis: null,
     treatment_plan: null,
+    risk_indicators: [],
+    ent_findings: null,
+    pregnancy_data: null,
+    injury_details: null,
+    mobility_status: null,
+    immunization_given: [],
     sentiment: 'Neutral',
+    live_schema_report: null,
 };
 
 const useRecordingStore = create<RecordingState>((set) => ({
@@ -119,7 +141,10 @@ const useRecordingStore = create<RecordingState>((set) => ({
     setPatientName: (name) => set({ patientName: name }),
 
     callDuration: 0,
-    setCallDuration: (n) => set({ callDuration: n }),
+    setCallDuration: (n) => 
+        set((state) => ({ 
+            callDuration: typeof n === 'function' ? n(state.callDuration) : n 
+        })),
 }));
 
  export const useDashboardRangeSelector = create<DashboardRangeSelector>((set)=>({
