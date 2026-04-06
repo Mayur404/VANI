@@ -250,7 +250,7 @@ const ExtractionPanel = ({
 
 // ─── Start Screen ──────────────────────────────────────────────
 
-const StartScreen = ({ sessionName }: { sessionName?: string | null }) => {
+const StartScreen = () => {
   const setHasStarted = useRecordingStore((state) => state.setHasStarted);
   const setSessionReady = useRecordingStore((state) => state.setSessionReady);
 
@@ -269,7 +269,6 @@ const StartScreen = ({ sessionName }: { sessionName?: string | null }) => {
         <p className="text-[#9d9d9d] font-lexend text-lg max-w-md">
           Start a new session to begin live transcription and AI-powered extraction.
         </p>
-        {sessionName && <p className="text-sm text-[#cfcfcf]">Last reviewed session: {sessionName}</p>}
       </div>
       <div className="flex gap-3">
         <span className="px-4 py-2 rounded-full text-sm font-outfit font-semibold bg-teal-500/20 border-teal-500/30">
@@ -296,19 +295,20 @@ const VoiceRecordingPageClient = ({ pageData }: { pageData: VoicePageData | null
   const isRecording = useRecordingStore((state) => state.isRecording);
   const hasStarted = useRecordingStore((state) => state.hasStarted);
   const sessionReady = useRecordingStore((state) => state.sessionReady);
+  const resetVoiceSession = useRecordingStore((state) => state.resetVoiceSession);
 
   const voice = useVoiceRecording();
+
+  useEffect(() => {
+    resetVoiceSession();
+  }, [resetVoiceSession]);
 
   const showVisualizer = sessionReady || isRecording;
   const showReviewLayout = hasStarted && !isRecording && !sessionReady;
   const isPreSession = !hasStarted;
 
   if (isPreSession) {
-    return (
-      <StartScreen
-        sessionName={pageData?.session?.patients?.name ?? pageData?.session?.customers?.name ?? null}
-      />
-    );
+    return <StartScreen />;
   }
 
   return (

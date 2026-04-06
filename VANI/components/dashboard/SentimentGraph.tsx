@@ -5,7 +5,6 @@ import {
     LineChart,
     CartesianGrid,
     XAxis,
-    YAxis,
     ResponsiveContainer,
 } from "recharts"
 
@@ -23,12 +22,7 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@/components/ui/chart"
-const chartConfig = {
-    sentiment: {
-        label: "Sentiment Score",
-        color: "#14b8a6",
-    },
-} satisfies ChartConfig
+import type { DashboardDomain } from "@/lib/services/basic.service"
 
 type SentimentTrendChartProps = {
     data: Array<{
@@ -38,9 +32,17 @@ type SentimentTrendChartProps = {
         negative: number;
         frustrated: number;
     }>;
+    domain?: DashboardDomain;
 }
 
-export function SentimentTrendChart({ data }: SentimentTrendChartProps) {
+export function SentimentTrendChart({ data, domain = "all" }: SentimentTrendChartProps) {
+    const accentColor = domain === "finance" ? "#f59e0b" : "#14b8a6"
+    const chartConfig = {
+        sentiment: {
+            label: "Sentiment Score",
+            color: accentColor,
+        },
+    } satisfies ChartConfig
     const chartData = data.map((entry) => {
         const total = entry.positive + entry.neutral + entry.negative + entry.frustrated
         const sentiment = total === 0 ? 0 : Number(((entry.positive / total) * 100).toFixed(1))

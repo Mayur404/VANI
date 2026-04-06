@@ -4,6 +4,7 @@ import { Oxanium, Outfit, Lexend } from "next/font/google"
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import AppShell from "@/components/layout/AppShell";
+import { ToastProvider } from "@/components/ui/toast";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/ui/themes";
 
@@ -65,7 +66,9 @@ export default function RootLayout({
                     afterSignOutUrl="/"
                     afterMultiSessionSingleSignOutUrl="/"
                 >
-                    <AppShell>{children}</AppShell>
+                    <ToastProvider>
+                        <AppShell>{children}</AppShell>
+                    </ToastProvider>
                 </ClerkProvider>
             </body>
         </html>

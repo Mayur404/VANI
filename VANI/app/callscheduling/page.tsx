@@ -1,12 +1,8 @@
 import { getCallsSchedulingPageData } from "@/lib/services/callscheduling.service";
-import { getPatientsList } from "@/lib/services/basic.service";
 import ScheduledCallsPageClient from "./ScheduledCallsPageClient";
 
 const ScheduledCallsPage = async () => {
-  const [rawData, patients] = await Promise.all([
-    getCallsSchedulingPageData(),
-    getPatientsList(),
-  ]);
+  const rawData = await getCallsSchedulingPageData();
 
   // Serialize to strip Prisma Decimal objects from scheduled calls (finance)
   const data = {
@@ -41,14 +37,7 @@ const ScheduledCallsPage = async () => {
     })),
   };
 
-  // Serialize patients (healthcare) - no Decimals but spread for safety
-  const serializedPatients = patients.map(p => ({
-    ...p,
-    healthcare_reports: p.healthcare_reports.map(r => ({ ...r })),
-    sessions: p.sessions.map(s => ({ ...s, users: s.users ? { ...s.users } : null })),
-  }));
-
-  return <ScheduledCallsPageClient data={data} patients={serializedPatients} />;
+  return <ScheduledCallsPageClient data={data} />;
 };
 
 export default ScheduledCallsPage;

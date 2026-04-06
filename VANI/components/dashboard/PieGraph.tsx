@@ -1,5 +1,6 @@
 "use client"
 
+import type { ComponentProps } from "react"
 import { Pie, PieChart } from "recharts"
 import { Sector } from "recharts"
 
@@ -14,12 +15,11 @@ import {
     ChartContainer,
     ChartLegend,
     ChartLegendContent,
-    type ChartConfig,
 } from "@/components/ui/chart"
+import type { DashboardDomain } from "@/lib/services/basic.service"
 
 export const description = "A pie chart with a legend"
 
-const base = "20, 184, 166" // teal rgb
 const chartConfig = {
     patients: {
         label: "Patients",
@@ -36,9 +36,11 @@ type ChartPieLegendProps = {
         language: string;
         sessions: number;
     }>;
+    domain?: DashboardDomain;
 }
 
-export function ChartPieLegend({ data }: ChartPieLegendProps) {
+export function ChartPieLegend({ data, domain = "all" }: ChartPieLegendProps) {
+    const base = domain === "finance" ? "245, 158, 11" : "20, 184, 166"
     const chartData = data.slice(0, 5).map((entry, index) => ({
         language: entry.language,
         patients: entry.sessions,
@@ -77,7 +79,7 @@ export function ChartPieLegend({ data }: ChartPieLegendProps) {
                             }
                             labelLine={false}
 
-                            activeShape={(props: any) => {
+                            activeShape={(props: ComponentProps<typeof Sector>) => {
                                 const { fill } = props
 
                                 return (

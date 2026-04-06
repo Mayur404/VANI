@@ -30,48 +30,38 @@ export const getDashboardOverview = async ({
   const where = buildSessionWhere(domain, range);
   const { previousStart, previousEnd } = getPreviousRange({ start, end });
 
-  const [
-    currentSessions,
-    previousSessions,
-    currentDuration,
-    previousDuration,
-    currentSentiment,
-    patientCount,
-    customerCount,
-  ] = await Promise.all([
-    prisma.sessions.count({ where }),
-    prisma.sessions.count({
-      where: {
-        ...(domain === "all" ? {} : { domain }),
-        created_at: {
-          gte: previousStart,
-          lte: previousEnd,
-        },
+  const currentSessions = await prisma.sessions.count({ where });
+  const previousSessions = await prisma.sessions.count({
+    where: {
+      ...(domain === "all" ? {} : { domain }),
+      created_at: {
+        gte: previousStart,
+        lte: previousEnd,
       },
-    }),
-    prisma.sessions.aggregate({
-      where,
-      _avg: { duration_seconds: true },
-    }),
-    prisma.sessions.aggregate({
-      where: {
-        ...(domain === "all" ? {} : { domain }),
-        created_at: {
-          gte: previousStart,
-          lte: previousEnd,
-        },
+    },
+  });
+  const currentDuration = await prisma.sessions.aggregate({
+    where,
+    _avg: { duration_seconds: true },
+  });
+  const previousDuration = await prisma.sessions.aggregate({
+    where: {
+      ...(domain === "all" ? {} : { domain }),
+      created_at: {
+        gte: previousStart,
+        lte: previousEnd,
       },
-      _avg: { duration_seconds: true },
-    }),
-    prisma.sentiment_analysis.aggregate({
-      where: {
-        sessions: where,
-      },
-      _avg: { cooperation_score: true },
-    }),
-    prisma.patients.count(),
-    prisma.customers.count(),
-  ]);
+    },
+    _avg: { duration_seconds: true },
+  });
+  const currentSentiment = await prisma.sentiment_analysis.aggregate({
+    where: {
+      sessions: where,
+    },
+    _avg: { cooperation_score: true },
+  });
+  const patientCount = await prisma.patients.count();
+  const customerCount = await prisma.customers.count();
 
   return {
     totalSessions: currentSessions,
@@ -388,6 +378,15 @@ export const getDashboardSnapshots = async ({
     orderBy: { snapshot_date: "asc" },
   });
 };
+
+export const getEmptyDashboardOverview = () => ({
+  totalSessions: 0,
+  totalSessionsChange: 0,
+  averageDurationSeconds: 0,
+  averageDurationChange: 0,
+  satisfactionScore: 0,
+  totalProfiles: 0,
+});
 
 export const getDashboardPageData = async (filters: DashboardFilters = {}) => {
   const [overview, sessionsTrend, languageDistribution, sentimentTrend, conditionBreakdown, paymentDistribution, snapshots] =

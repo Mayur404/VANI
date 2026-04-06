@@ -22,6 +22,7 @@ const { setupWebRTCSignaling } = require('./webrtc-signaling.cjs');
 const { setupAICall } = require('./ai-call.cjs');
 const { setupJsonReports } = require('./json-reports.cjs');
 const { setupVoiceRecording } = require('./voice-recording.cjs');
+const { setupEntityManagement } = require('./entity-management.cjs');
 
 const dev = process.env.NODE_ENV !== 'production';
 const nextApp = next({
@@ -42,6 +43,7 @@ nextApp.prepare().then(() => {
   setupAICall(server, expressApp);
   setupJsonReports(server, expressApp);
   setupVoiceRecording(server, expressApp);
+  setupEntityManagement(server, expressApp);
 
   // Let Next.js handle everything else
   expressApp.use((req, res) => {
@@ -53,7 +55,7 @@ nextApp.prepare().then(() => {
   server.listen(PORT, () => {
     console.log(`> VANI ready on http://localhost:${PORT}`);
     console.log(`> WebSockets active: /ai-call  /webrtc-signal`);
-    console.log(`> REST active: /create-ai-session  /create-manual-room  /transcribe-ai  /transcribe-manual  /reports  /scheduled-calls  /json-reports`);
+    console.log(`> REST active: /create-ai-session  /create-manual-room  /transcribe-ai  /transcribe-manual  /reports  /scheduled-calls  /json-reports  /patients  /customers`);
     console.log(`> Voice recording active: /api/voice/transcribe-chunk  /api/voice/diarize  /api/voice/extract-report  /api/voice/save-report`);
   });
 });

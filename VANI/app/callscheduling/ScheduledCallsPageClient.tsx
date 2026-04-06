@@ -4,15 +4,12 @@ import { ArrowLeft, ArrowRight, Info, Video } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useDashboardDomain } from "@/store/useRecordingStore";
 
 type CallsSchedulingPageData = Awaited<
   ReturnType<typeof import("@/lib/services/callscheduling.service").getCallsSchedulingPageData>
 >;
 
-type PatientsListData = Awaited<
-  ReturnType<typeof import("@/lib/services/basic.service").getPatientsList>
->;
+type ScheduledCall = CallsSchedulingPageData["upcomingCalls"][number];
 
 const formatTime = (value: Date) =>
   new Intl.DateTimeFormat("en-IN", {
@@ -21,17 +18,78 @@ const formatTime = (value: Date) =>
     hour12: true,
   }).format(new Date(value));
 
-const ScheduledCallsPageClient = ({ data, patients }: { data: CallsSchedulingPageData; patients: PatientsListData }) => {
+const formatAmount = (value: number | null | undefined) =>
+  value == null
+    ? "Unavailable"
+    : new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0,
+      }).format(value);
+
+const formatStatus = (value: string | null | undefined) => (value ? value.replaceAll("_", " ") : "pending");
+
+const getStatusAccent = (status: string | null | undefined) => {
+  if (status === "completed") return "bg-emerald-500";
+  if (status === "failed") return "bg-rose-500";
+  if (status === "initiated") return "bg-sky-500";
+  return "bg-amber-500";
+};
+
+const getStatusBadge = (status: string | null | undefined) => {
+  if (status === "completed") return "border-emerald-500/30 bg-emerald-500/12 text-emerald-300";
+  if (status === "failed") return "border-rose-500/30 bg-rose-500/12 text-rose-300";
+  if (status === "initiated") return "border-sky-500/30 bg-sky-500/12 text-sky-300";
+  return "border-amber-500/30 bg-amber-500/12 text-amber-300";
+};
+
+const SummaryCard = ({
+  day,
+  totalCalls,
+  pendingCalls,
+  initiatedCalls,
+  completedCalls,
+  failedCalls,
+}: CallsSchedulingPageData["weekSummary"][number]) => (
+  <div className="rounded-[26px] border border-[#171717] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.06),_transparent_55%),#0a0a0a] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+    <div className="flex items-start justify-between">
+      <h2 className="text-2xl font-semibold text-white">{day}</h2>
+      <div className="flex items-center gap-2">
+        {pendingCalls > 0 && <div className="h-3 w-3 rounded-full bg-amber-500" />}
+        {initiatedCalls > 0 && <div className="h-3 w-3 rounded-full bg-sky-500" />}
+        {completedCalls > 0 && <div className="h-3 w-3 rounded-full bg-emerald-500" />}
+        {failedCalls > 0 && <div className="h-3 w-3 rounded-full bg-rose-500" />}
+      </div>
+    </div>
+    <div className="mt-6 flex items-end justify-between">
+      <p className="text-5xl font-semibold text-white">{totalCalls}</p>
+      <span className="rounded-full border border-[#222] bg-[#121212] px-3 py-1 text-xs uppercase tracking-[0.25em] text-[#9d9d9d]">
+        calls
+      </span>
+    </div>
+  </div>
+);
+
+const ScheduledCallsPageClient = ({ data }: { data: CallsSchedulingPageData }) => {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
-  const router = useRouter();
-  const domain = useDashboardDomain((state) => state.domain);
-  const isFinance = String(domain).toLowerCase() === "finance";
+  const [selectedCallId, setSelectedCallId] = useState<number | null>(
+    data.upcomingCalls[0]?.id ?? data.pastCalls[0]?.id ?? null,
+  );
 
   const selectedCalls = tab === "upcoming" ? data.upcomingCalls : data.pastCalls;
-  const activeCall = useMemo(() => selectedCalls[0] ?? null, [selectedCalls]);
+  const activeCall = useMemo(
+    () => selectedCalls.find((call) => call.id === selectedCallId) ?? selectedCalls[0] ?? null,
+    [selectedCallId, selectedCalls],
+  );
 
-  const handleJoinNow = (call: CallsSchedulingPageData["upcomingCalls"][number] | CallsSchedulingPageData["pastCalls"][number]) => {
+  const handleViewMore = (call: ScheduledCall) => {
+    setSelectedCallId(call.id);
+    setExpanded(true);
+  };
+
+  const handleJoinNow = (call: ScheduledCall) => {
     const params = new URLSearchParams({
       name: call.customers?.name ?? "Unknown customer",
       id: call.customers?.loan_account_number ?? String(call.id),
@@ -41,211 +99,76 @@ const ScheduledCallsPageClient = ({ data, patients }: { data: CallsSchedulingPag
       bank: "VANI Finance",
       agent: call.sessions?.users?.name ?? "VANI Agent",
       scheduledCallId: String(call.id),
+      autoStartScheduled: "false",
     });
 
     router.push(`/call?${params.toString()}`);
   };
 
-  const handlePatientCall = (patient: PatientsListData[number]) => {
-    const params = new URLSearchParams({
-      name: patient.name,
-      id: patient.insurance_id ?? String(patient.id),
-      phone: patient.phone_number ?? "",
-      domain: "healthcare",
-      amount: "0",
-      bank: patient.sessions[0]?.users?.organisation ?? "VANI Care",
-      agent: patient.sessions[0]?.users?.name ?? "Assigned Doctor",
-    });
-
-    router.push(`/call?${params.toString()}`);
-  };
-
-  const handleViewProfile = (patient: PatientsListData[number]) => {
-    const params = new URLSearchParams({
-      domain: "healthcare",
-      id: String(patient.id),
-    });
-    router.push(`/userprofile?${params.toString()}`);
-  };
-
-  // ─── HEALTHCARE VIEW ─────────────────────────────────────
-  if (!isFinance) {
-    return (
-      <div className="w-full min-h-screen flex flex-col font-oxanium bg-black">
-        <div className="w-full h-1/12 flex items-center justify-center gap-4 p-4">
-          <div className="h-full w-1/3 flex items-center justify-start">
-            <h1 className="text-3xl font-semibold text-white m-4">PATIENT SESSIONS</h1>
-          </div>
-          <div className="h-full w-1/3" />
-          <div className="h-full w-1/3 flex items-center justify-end gap-4 p-2">
-            <div className="px-4 py-2 bg-teal-500/20 border border-teal-500/30 rounded-xl">
-              <span className="text-teal-400 text-sm font-semibold">HEALTHCARE MODE</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="w-full flex-1 rounded-2xl flex flex-col gap-4 p-4">
-          {patients.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-[#9d9d9d] text-xl">No patients found in the system.</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {patients.map((patient) => {
-                const lastReport = patient.healthcare_reports[0];
-                const lastSession = patient.sessions[0];
-                return (
-                  <div
-                    key={patient.id}
-                    className="bg-[#0a0a0a] rounded-2xl font-semibold text-white flex items-center justify-center gap-4 p-4"
-                  >
-                    <div className="relative h-full w-1/8 flex flex-col items-center justify-center border-r-[#9d9d9d] border-r pr-4">
-                      <div className="w-16 h-16 rounded-full bg-[#1a1a1a] border-2 border-teal-500/50 flex items-center justify-center">
-                        <span className="text-xl font-bold text-teal-500">
-                          {patient.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-full w-2/8 flex flex-col justify-center gap-1 p-2">
-                      <h1 className="text-2xl text-white">{patient.name}</h1>
-                      <div className="text-sm text-[#9d9d9d]">
-                        ID: {patient.insurance_id ?? `P-${patient.id}`} · {patient.age ? `${patient.age}y` : ""} {patient.gender ?? ""}
-                      </div>
-                    </div>
-                    <div className="h-full w-2/8 flex flex-col justify-center gap-1 p-2">
-                      {lastReport && (
-                        <>
-                          <div className="text-sm text-[#9d9d9d]">
-                            Last: {lastReport.chief_complaint?.slice(0, 40) ?? "No complaint"}
-                          </div>
-                          <div className="flex gap-2 mt-1">
-                            {lastReport.severity && (
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                lastReport.severity === "severe" ? "bg-red-500/30 text-red-400" :
-                                lastReport.severity === "moderate" ? "bg-amber-500/30 text-amber-400" :
-                                "bg-green-500/30 text-green-400"
-                              }`}>
-                                {lastReport.severity.toUpperCase()}
-                              </span>
-                            )}
-                            {lastReport.visit_type && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/30 text-blue-400">
-                                {lastReport.visit_type.replaceAll("_", " ").toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                        </>
-                      )}
-                      {!lastReport && (
-                        <div className="text-sm text-[#6b6b6b]">No reports yet</div>
-                      )}
-                    </div>
-                    <div className="h-full w-1/8 flex flex-col justify-center p-2">
-                      <div className="text-sm text-[#9d9d9d]">
-                        {lastSession?.completed_at ? `Last: ${new Date(lastSession.completed_at).toLocaleDateString("en-IN")}` : "No sessions"}
-                      </div>
-                    </div>
-                    <div className="h-full w-1/8 flex items-center justify-center gap-2 p-2">
-                      <button
-                        className="w-full h-full bg-[#1f1f1f] rounded-xl text-lg flex items-center justify-center gap-2 p-3"
-                        onClick={() => handleViewProfile(patient)}
-                      >
-                        <Info size={18} />
-                        Profile
-                      </button>
-                    </div>
-                    <div className="h-full w-1/8 flex items-center justify-center gap-2 p-2">
-                      <button
-                        className="w-full h-full bg-teal-600 rounded-xl text-lg flex items-center justify-center gap-2 p-3"
-                        onClick={() => handlePatientCall(patient)}
-                      >
-                        <Video size={18} />
-                        Call
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="w-full h-2/12 rounded-t-xl flex gap-4 px-4">
-          <div className="w-full h-full flex items-center justify-center gap-4 px-4">
-            <div className="w-full h-full rounded-t-xl bg-[#0a0a0a11] flex items-center justify-around text-white">
-              <div>
-                <p className="text-sm text-[#9d9d9d]">Total Patients</p>
-                <p className="text-3xl">{patients.length}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[#9d9d9d]">With Reports</p>
-                <p className="text-3xl">{patients.filter(p => p.healthcare_reports.length > 0).length}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[#9d9d9d]">Recent Sessions</p>
-                <p className="text-3xl">{patients.filter(p => p.sessions.length > 0).length}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── FINANCE VIEW (existing) ──────────────────────────────
   return (
-    <div className="w-full min-h-screen flex flex-col font-oxanium bg-black">
-      <div className="w-full h-1/12 flex items-center justify-center gap-4 p-4">
-        <div className="h-full w-1/3 flex items-center justify-start">
-          <h1 className="text-3xl font-semibold text-white m-4">SCHEDULED CALLS</h1>
+    <div className="min-h-screen w-full bg-[#050505] font-oxanium text-white">
+      <div className="flex w-full items-center justify-center gap-4 px-6 pb-2 pt-6">
+        <div className="flex w-1/3 items-center justify-start">
+          <div>
+            <p className="text-xs uppercase tracking-[0.45em] text-[#727272]">Operations Queue</p>
+            <h1 className="mt-2 text-3xl font-semibold text-white">Scheduled Calls</h1>
+          </div>
         </div>
-        <div className="h-full w-1/3" />
-        <div className="h-full w-1/3 flex items-center justify-end gap-4 p-2">
-          <div className="px-4 py-2 bg-amber-500/20 border border-amber-500/30 rounded-xl">
-            <span className="text-amber-400 text-sm font-semibold">FINANCE MODE</span>
+        <div className="w-1/3" />
+        <div className="flex w-1/3 items-center justify-end gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#1d1d1d] bg-[#0d0d0d] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <ArrowLeft size={20} className="text-[#f4f4f4]" />
           </div>
-          <div className="h-full w-fit bg-[#0f0e10] flex items-center justify-center rounded-xl p-4">
-            <ArrowLeft size={24} className="text-white font-bold" />
-          </div>
-          <div className="h-full w-fit bg-[#0f0e10] flex items-center justify-center rounded-xl p-4">
-            <ArrowRight size={24} className="text-white font-bold" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#1d1d1d] bg-[#0d0d0d] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <ArrowRight size={20} className="text-[#f4f4f4]" />
           </div>
         </div>
       </div>
 
-      <div className="w-full h-2/12 flex items-center justify-center gap-4 p-4">
-        {data.weekSummary.map((das) => (
-          <div key={das.day} className="h-full w-1/7 bg-[#0a0a0a] rounded-2xl">
-            <h1 className="text-3xl font-semibold text-white m-4">{das.day}</h1>
-            <div className="w-full h-1/2 text-start flex">
-              <h1 className="text-5xl font-semibold text-white m-4">{das.totalCalls}</h1>
-              <div className="h-full w-1/2 flex items-center gap-2">
-                {das.pendingCalls > 0 && <div className="h-3 w-3 rounded-full bg-amber-500" />}
-                {das.initiatedCalls > 0 && <div className="h-3 w-3 rounded-full bg-blue-500" />}
-                {das.completedCalls > 0 && <div className="h-3 w-3 rounded-full bg-green-500" />}
-                {das.failedCalls > 0 && <div className="h-3 w-3 rounded-full bg-red-500" />}
-              </div>
-            </div>
-          </div>
+      <div className="grid w-full grid-cols-2 gap-4 px-6 py-4 md:grid-cols-3 xl:grid-cols-7">
+        {data.weekSummary.map((day) => (
+          <SummaryCard key={day.day} {...day} />
         ))}
       </div>
 
-      <div className="w-full h-16 flex items-center justify-evenly gap-4 p-4">
-        <div className="h-full w-full flex items-center justify-start gap-4">
-          <div className="h-full w-fit p-4" onClick={() => setTab("upcoming")}>
-            <span className={`text-xl font-semibold text-white p-2 ${tab === "upcoming" ? "border-b-4 border-white" : ""}`}>
-              Upcoming Sessions
-            </span>
-          </div>
-          <div className="h-full w-fit p-4" onClick={() => setTab("past")}>
-            <span className={`text-xl font-semibold text-white p-2 ${tab === "past" ? "border-b-4 border-white" : ""}`}>
-              Past Logs
-            </span>
-          </div>
-        </div>
-        <div className="h-full w-full flex items-center justify-end gap-4 p-4">
+      <div className="flex w-full flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex w-full items-center justify-start gap-3">
           <button
-            className="h-full w-fit p-4 bg-[#0f0e10] flex items-center justify-center rounded-xl text-sm font-semibold text-white"
+            type="button"
+            onClick={() => setTab("upcoming")}
+            className={`rounded-2xl px-5 py-3 text-base font-semibold transition-all duration-200 ${
+              tab === "upcoming"
+                ? "border border-[#2a2a2a] bg-[#121212] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                : "text-[#a0a0a0] hover:bg-[#101010] hover:text-white"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              Upcoming Sessions
+              <span className="rounded-full bg-[#1c1c1c] px-2.5 py-1 text-xs text-[#d0d0d0]">
+                {data.upcomingCalls.length}
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("past")}
+            className={`rounded-2xl px-5 py-3 text-base font-semibold transition-all duration-200 ${
+              tab === "past"
+                ? "border border-[#2a2a2a] bg-[#121212] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                : "text-[#a0a0a0] hover:bg-[#101010] hover:text-white"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              Past Logs
+              <span className="rounded-full bg-[#1c1c1c] px-2.5 py-1 text-xs text-[#d0d0d0]">
+                {data.pastCalls.length}
+              </span>
+            </span>
+          </button>
+        </div>
+        <div className="flex w-full items-center justify-end gap-4">
+          <button
+            className="rounded-2xl border border-[#1f1f1f] bg-[#0e0e0e] px-5 py-3 text-sm font-semibold tracking-[0.18em] text-white transition-colors duration-200 hover:bg-[#141414]"
             onClick={() => setExpanded((current) => !current)}
           >
             {expanded ? "HIDE DETAILS" : "VIEW DETAILS"}
@@ -253,103 +176,184 @@ const ScheduledCallsPageClient = ({ data, patients }: { data: CallsSchedulingPag
         </div>
       </div>
 
-      <div className="w-full h-6/12 rounded-2xl flex gap-4 p-4">
-        <div className={`${expanded ? "w-1/2" : "w-full"} h-full rounded-2xl flex flex-col gap-4 p-4 transition-all duration-700`}>
+      <div className="flex w-full flex-col gap-4 px-6 py-2 xl:flex-row">
+        <div
+          className={`${
+            expanded ? "xl:w-[58%]" : "w-full"
+          } flex min-h-[520px] flex-col gap-4 rounded-[28px] border border-[#151515] bg-[#080808] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.35)] transition-all duration-700`}
+        >
           {selectedCalls.map((call) => (
             <div
               key={call.id}
-              className="h-1/4 bg-[#0a0a0a] rounded-2xl font-semibold text-2xl text-white flex items-center justify-center gap-4 p-2"
+              className={`grid min-h-[154px] grid-cols-1 gap-4 rounded-[24px] border p-4 text-white transition-all duration-200 xl:grid-cols-[148px_minmax(0,1.15fr)_minmax(0,1.4fr)_150px_150px] ${
+                activeCall?.id === call.id
+                  ? "border-[#303030] bg-[linear-gradient(135deg,rgba(34,34,34,0.96),rgba(14,14,14,0.98))] shadow-[0_16px_45px_rgba(0,0,0,0.32)]"
+                  : "border-[#171717] bg-[#0c0c0c] hover:border-[#262626] hover:bg-[#101010]"
+              }`}
             >
-              <div className="relative h-full w-1/8 flex flex-col items-center justify-center border-r-[#9d9d9d] border-r">
-                <h1 className="text-3xl font-semibold text-white">{formatTime(call.scheduled_time)}</h1>
-                <h3 className="text-lg font-semibold text-[#9d9d9d]">{call.status?.replaceAll("_", " ")}</h3>
+              <div className="relative flex h-full flex-col justify-center rounded-[20px] border border-[#1f1f1f] bg-[#111111] px-5 py-4">
                 <div
-                  className={`absolute w-2 h-full left-0 rounded-r-xl ${
-                    call.status === "completed"
-                      ? "bg-green-500"
-                      : call.status === "failed"
-                        ? "bg-red-500"
-                        : call.status === "initiated"
-                          ? "bg-blue-500"
-                          : "bg-amber-500"
-                  }`}
+                  className={`absolute left-0 top-3 h-[calc(100%-24px)] w-1.5 rounded-r-xl ${getStatusAccent(call.status)}`}
                 />
+                <p className="text-xs uppercase tracking-[0.35em] text-[#7c7c7c]">Scheduled</p>
+                <h2 className="mt-3 text-3xl font-semibold text-white">{formatTime(call.scheduled_time)}</h2>
+                <span
+                  className={`mt-3 w-fit rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] ${getStatusBadge(call.status)}`}
+                >
+                  {formatStatus(call.status)}
+                </span>
               </div>
-              <div className="h-full w-2/8 flex items-center justify-center gap-4 p-2">
-                <div className="h-full w-1/3 flex items-center justify-center">
-                  <Image src="/profilepic.png" alt="profile_pic" className="rounded-full" width={64} height={64} />
-                </div>
-                <div className="h-full w-2/3 flex flex-col items-center justify-center">
-                  <h1 className="text-2xl text-white pt-1">{call.customers?.name ?? "Unknown customer"}</h1>
-                  <div className="text-sm text-[#9d9d9d] pb-1">
+
+              <div className="flex h-full items-center gap-4 rounded-[20px] border border-[#171717] bg-[#0f0f0f] px-4 py-3">
+                <Image
+                  src="/profilepic.png"
+                  alt="profile_pic"
+                  className="rounded-full border border-[#2c2c2c]"
+                  width={68}
+                  height={68}
+                />
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-2xl text-white">{call.customers?.name ?? "Unknown customer"}</h3>
+                  <div className="mt-2 text-sm uppercase tracking-[0.2em] text-[#8d8d8d]">
                     {call.sessions?.finance_reports[0]?.next_action?.replaceAll("_", " ") ?? "Follow up"}
                   </div>
+                  <p className="mt-3 truncate text-sm text-[#bdbdbd]">
+                    {call.customers?.loan_account_number ?? "Loan account unavailable"}
+                  </p>
                 </div>
               </div>
-              <div className="h-full w-3/8 flex items-center justify-center gap-4 p-4">
-                <div className="h-full w-full text-sm text-[#dbdbdb]">{call.reason ?? "No reason recorded."}</div>
+
+              <div className="flex h-full min-w-0 flex-col justify-between rounded-[20px] border border-[#171717] bg-[#0f0f0f] p-4">
+                <p className="text-xs uppercase tracking-[0.3em] text-[#6f6f6f]">Reason</p>
+                <div className="mt-3 line-clamp-3 text-sm leading-6 text-[#dbdbdb]">
+                  {call.reason ?? "No reason recorded."}
+                </div>
+                <p className="mt-4 text-xs uppercase tracking-[0.22em] text-[#7e7e7e]">
+                  Outstanding {formatAmount(call.customers?.outstanding_amount ?? null)}
+                </p>
               </div>
-              <div className="h-full w-1/8 flex items-center justify-center gap-4 p-4">
+
+              <div className="flex h-full items-stretch justify-center">
                 <button
-                  className="w-full h-full bg-[#1f1f1f] rounded-xl text-lg flex items-center justify-center gap-2"
-                  onClick={() => setExpanded(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-[20px] border border-[#272727] bg-[#171717] px-4 py-4 text-base font-semibold transition-all duration-200 hover:border-[#3a3a3a] hover:bg-[#1d1d1d]"
+                  onClick={() => handleViewMore(call)}
                 >
-                  <Info />
+                  <Info size={18} />
                   View More
                 </button>
               </div>
-              <div className="h-full w-1/8 flex items-center justify-center gap-4 p-4">
+
+              <div className="flex h-full items-stretch justify-center">
                 <button
-                  className="w-full h-full bg-blue-500 rounded-xl text-lg flex items-center justify-center gap-2"
+                  className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,#2563eb,#1d4ed8)] px-4 py-4 text-base font-semibold shadow-[0_14px_30px_rgba(37,99,235,0.22)] transition-transform duration-200 hover:scale-[1.01]"
                   onClick={() => handleJoinNow(call)}
                 >
-                  <Video />
+                  <Video size={18} />
                   Join Now
                 </button>
               </div>
             </div>
           ))}
         </div>
-        <div className={`h-full ${expanded ? "w-1/2" : "w-0"} flex gap-4 p-4 transition-all duration-700`}>
-          {activeCall && (
-            <div className="h-full w-full rounded-2xl bg-[#0f0e10] p-6 text-white">
-              <h2 className="text-2xl font-semibold">{activeCall.customers?.name ?? "Unknown customer"}</h2>
-              <p className="text-[#9d9d9d] mt-2">Phone: {activeCall.phone_number ?? "Unavailable"}</p>
-              <p className="text-[#9d9d9d] mt-2">
-                Scheduled: {new Date(activeCall.scheduled_time).toLocaleString("en-IN")}
-              </p>
-              <p className="text-[#9d9d9d] mt-2">Status: {activeCall.status?.replaceAll("_", " ")}</p>
-              <p className="mt-6 text-sm text-[#d4d4d4]">{activeCall.reason ?? "No reason recorded."}</p>
-              <div className="mt-6 space-y-3">
-                <p className="text-sm text-[#9d9d9d]">
-                  Last payment status: {activeCall.sessions?.finance_reports[0]?.payment_status ?? "Unknown"}
-                </p>
-                <p className="text-sm text-[#9d9d9d]">
-                  Assigned agent: {activeCall.sessions?.users?.name ?? "Unassigned"}
-                </p>
-                <p className="text-sm text-[#9d9d9d]">
-                  Latest alert: {activeCall.sessions?.alerts[0]?.message ?? "No linked alert"}
+
+        <div
+          className={`${
+            expanded ? "xl:w-[42%]" : "w-0"
+          } flex transition-all duration-700 ${expanded ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        >
+          {activeCall ? (
+            <div className="w-full rounded-[28px] border border-[#171717] bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.09),_transparent_45%),#0d0d0d] p-6 text-white shadow-[0_20px_70px_rgba(0,0,0,0.35)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-[#7a7a7a]">Selected Profile</p>
+                  <h2 className="mt-3 text-3xl font-semibold">{activeCall.customers?.name ?? "Unknown customer"}</h2>
+                </div>
+                <span
+                  className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.2em] ${getStatusBadge(activeCall.status)}`}
+                >
+                  {formatStatus(activeCall.status)}
+                </span>
+              </div>
+
+              <div className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-[#1d1d1d] bg-[#121212] p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-[#767676]">Phone</p>
+                  <p className="mt-2 text-base text-[#e8e8e8]">{activeCall.phone_number ?? "Unavailable"}</p>
+                </div>
+                <div className="rounded-2xl border border-[#1d1d1d] bg-[#121212] p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-[#767676]">Loan Account</p>
+                  <p className="mt-2 text-base text-[#e8e8e8]">
+                    {activeCall.customers?.loan_account_number ?? "Unavailable"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#1d1d1d] bg-[#121212] p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-[#767676]">Scheduled</p>
+                  <p className="mt-2 text-base text-[#e8e8e8]">
+                    {new Date(activeCall.scheduled_time).toLocaleString("en-IN")}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#1d1d1d] bg-[#121212] p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-[#767676]">Outstanding</p>
+                  <p className="mt-2 text-base text-[#e8e8e8]">
+                    {formatAmount(activeCall.customers?.outstanding_amount ?? null)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 rounded-[24px] border border-[#1b1b1b] bg-[#101010] p-5">
+                <p className="text-xs uppercase tracking-[0.32em] text-[#767676]">Call Context</p>
+                <p className="mt-4 text-sm leading-7 text-[#d4d4d4]">
+                  {activeCall.reason ?? "No reason recorded."}
                 </p>
               </div>
+
+              <div className="mt-8 space-y-3">
+                <div className="flex items-center justify-between rounded-2xl border border-[#171717] bg-[#101010] px-4 py-3">
+                  <p className="text-sm text-[#8f8f8f]">Last payment status</p>
+                  <p className="text-sm font-semibold text-white">
+                    {activeCall.sessions?.finance_reports[0]?.payment_status ?? "Unknown"}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-[#171717] bg-[#101010] px-4 py-3">
+                  <p className="text-sm text-[#8f8f8f]">Next action</p>
+                  <p className="text-right text-sm font-semibold text-white">
+                    {activeCall.sessions?.finance_reports[0]?.next_action?.replaceAll("_", " ") ?? "Not set"}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-[#171717] bg-[#101010] px-4 py-3">
+                  <p className="text-sm text-[#8f8f8f]">Assigned agent</p>
+                  <p className="text-sm font-semibold text-white">
+                    {activeCall.sessions?.users?.name ?? "Unassigned"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#171717] bg-[#101010] px-4 py-3">
+                  <p className="text-sm text-[#8f8f8f]">Latest alert</p>
+                  <p className="mt-2 text-sm leading-6 text-white">
+                    {activeCall.sessions?.alerts[0]?.message ?? "No linked alert"}
+                  </p>
+                </div>
+              </div>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
-      <div className="w-full h-2/12 rounded-t-xl flex gap-4 px-4">
-        <div className="w-full h-full flex items-center justify-center gap-4 px-4">
-          <div className="w-full h-full rounded-t-xl bg-[#0a0a0a11] flex items-center justify-around text-white">
-            <div>
-              <p className="text-sm text-[#9d9d9d]">Upcoming</p>
-              <p className="text-3xl">{data.upcomingCalls.length}</p>
+      <div className="flex w-full gap-4 px-6 pb-8 pt-4">
+        <div className="flex w-full items-center justify-center gap-4">
+          <div className="grid w-full grid-cols-1 gap-4 rounded-[28px] border border-[#171717] bg-[#0b0b0b] p-6 text-white md:grid-cols-3">
+            <div className="rounded-2xl border border-[#151515] bg-[#101010] p-4">
+              <p className="text-sm uppercase tracking-[0.28em] text-[#888]">Upcoming</p>
+              <p className="mt-3 text-4xl">{data.upcomingCalls.length}</p>
             </div>
-            <div>
-              <p className="text-sm text-[#9d9d9d]">Past</p>
-              <p className="text-3xl">{data.pastCalls.length}</p>
+            <div className="rounded-2xl border border-[#151515] bg-[#101010] p-4">
+              <p className="text-sm uppercase tracking-[0.28em] text-[#888]">Past</p>
+              <p className="mt-3 text-4xl">{data.pastCalls.length}</p>
             </div>
-            <div>
-              <p className="text-sm text-[#9d9d9d]">This Week</p>
-              <p className="text-3xl">{data.weekSummary.reduce((sum, item) => sum + item.totalCalls, 0)}</p>
+            <div className="rounded-2xl border border-[#151515] bg-[#101010] p-4">
+              <p className="text-sm uppercase tracking-[0.28em] text-[#888]">This Week</p>
+              <p className="mt-3 text-4xl">
+                {data.weekSummary.reduce((sum, item) => sum + item.totalCalls, 0)}
+              </p>
             </div>
           </div>
         </div>

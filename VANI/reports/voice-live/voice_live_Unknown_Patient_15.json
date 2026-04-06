@@ -1,0 +1,86 @@
+{
+  "source": "voice-live",
+  "session": {
+    "id": "15",
+    "domain": "healthcare",
+    "mode": "recording",
+    "status": "approved",
+    "language_detected": "en-IN",
+    "duration_seconds": 26,
+    "completed_at": "2026-04-06T20:06:06.350Z"
+  },
+  "patient": {
+    "id": 9,
+    "name": "Unknown Patient",
+    "phone_number": null
+  },
+  "healthcare_report": {
+    "session_id": "15",
+    "patient_id": 9,
+    "visit_type": "first_visit",
+    "chief_complaint": "chielf complaint by doctor",
+    "symptoms": [],
+    "duration": null,
+    "severity": null,
+    "past_history": null,
+    "current_medications": [],
+    "allergies": [],
+    "clinical_observations": null,
+    "diagnosis": "doctor introduced themselves",
+    "treatment_plan": null,
+    "risk_indicators": [],
+    "ent_findings": null,
+    "pregnancy_data": null,
+    "injury_details": null,
+    "mobility_status": null,
+    "immunization_given": [],
+    "created_at": "2026-04-06T20:06:06.350Z",
+    "updated_at": "2026-04-06T20:06:06.350Z"
+  },
+  "transcript": [
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "Is the actual recording, the actual transcription coming or not?",
+      "language": "en-IN",
+      "timestamp_seconds": 0
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "It is coming.",
+      "language": "en-IN",
+      "timestamp_seconds": 3.4
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "Hello.",
+      "language": "en-IN",
+      "timestamp_seconds": 6.8
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "Hello.",
+      "language": "en-IN",
+      "timestamp_seconds": 10.2
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "How may I help you?",
+      "language": "en-IN",
+      "timestamp_seconds": 13.6
+    }
+  ],
+  "sentiment_analysis": {
+    "session_id": "15",
+    "overall_sentiment": "neutral",
+    "summary": "Voice recording session - 5 transcript lines",
+    "created_at": "2026-04-06T20:06:06.350Z"
+  },
+  "alerts": [],
+  "created_at": "2026-04-06T20:06:06.350Z",
+  "updated_at": "2026-04-06T20:06:06.350Z"
+}

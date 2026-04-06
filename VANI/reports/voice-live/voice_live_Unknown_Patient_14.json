@@ -1,0 +1,86 @@
+{
+  "source": "voice-live",
+  "session": {
+    "id": "14",
+    "domain": "healthcare",
+    "mode": "recording",
+    "status": "approved",
+    "language_detected": "en-IN",
+    "duration_seconds": 35,
+    "completed_at": "2026-04-06T20:04:21.252Z"
+  },
+  "patient": {
+    "id": 8,
+    "name": "Unknown Patient",
+    "phone_number": null
+  },
+  "healthcare_report": {
+    "session_id": "14",
+    "patient_id": 8,
+    "visit_type": "first_visit",
+    "chief_complaint": null,
+    "symptoms": [],
+    "duration": null,
+    "severity": null,
+    "past_history": null,
+    "current_medications": [],
+    "allergies": [],
+    "clinical_observations": null,
+    "diagnosis": null,
+    "treatment_plan": null,
+    "risk_indicators": [],
+    "ent_findings": null,
+    "pregnancy_data": null,
+    "injury_details": null,
+    "mobility_status": null,
+    "immunization_given": [],
+    "created_at": "2026-04-06T20:04:21.252Z",
+    "updated_at": "2026-04-06T20:04:21.252Z"
+  },
+  "transcript": [
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "Just when it says 'unknown', this is already loaded.",
+      "language": "en-IN",
+      "timestamp_seconds": 0
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "Patient previous, right?",
+      "language": "en-IN",
+      "timestamp_seconds": 3.7
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "Okay, continue.",
+      "language": "en-IN",
+      "timestamp_seconds": 7.4
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "Customer clicked, no, does that mean there's already a customer?",
+      "language": "en-IN",
+      "timestamp_seconds": 11.2
+    },
+    {
+      "speaker_label": "SPEAKER_1",
+      "speaker_role": "doctor",
+      "text": "What to do?",
+      "language": "en-IN",
+      "timestamp_seconds": 14.9
+    }
+  ],
+  "sentiment_analysis": {
+    "session_id": "14",
+    "overall_sentiment": "neutral",
+    "summary": "Voice recording session - 5 transcript lines",
+    "created_at": "2026-04-06T20:04:21.252Z"
+  },
+  "alerts": [],
+  "created_at": "2026-04-06T20:04:21.252Z",
+  "updated_at": "2026-04-06T20:04:21.252Z"
+}

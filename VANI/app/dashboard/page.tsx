@@ -4,61 +4,126 @@ import { PatientConditionChart } from "@/components/dashboard/PatientCondition";
 import { SentimentTrendChart } from "@/components/dashboard/SentimentGraph";
 import DashboardHero from "@/components/dashboard/DashboardHero";
 import {
+  getEmptyDashboardOverview,
   getDashboardConditionBreakdown,
   getDashboardLanguageDistribution,
   getDashboardOverview,
   getDashboardSentimentTrend,
   getDashboardSessionsTrend,
 } from "@/lib/services/dashboard.service";
+import { DEFAULT_DASHBOARD_DAYS, type DashboardDomain } from "@/lib/services/basic.service";
 import BasicInfo from "@/components/dashboard/BasicInfo";
 
-const DashboardPage = async () => {
-    const [
-        dashboardOverview,
-        sessionsTrend,
-        languageDistribution,
-        conditionBreakdown,
-        sentimentTrend,
-    ] = await Promise.all([
-        getDashboardOverview(),
-        getDashboardSessionsTrend(),
-        getDashboardLanguageDistribution(),
-        getDashboardConditionBreakdown(),
-        getDashboardSentimentTrend(),
-    ]);
+type Props = {
+    searchParams: Promise<{
+        domain?: string;
+        days?: string;
+        startDate?: string;
+        endDate?: string;
+    }>;
+};
+
+const parseDashboardDomain = (value?: string): DashboardDomain => {
+    if (value === "finance" || value === "healthcare") return value;
+    return "all";
+};
+
+const parseDashboardDate = (value?: string) => {
+    if (!value) return undefined;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
+const parseDashboardDays = (value?: string) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_DASHBOARD_DAYS;
+};
+
+const DashboardPage = async ({ searchParams }: Props) => {
+    const params = await searchParams;
+    const selectedDomain = parseDashboardDomain(params.domain);
+    const parsedStartDate = parseDashboardDate(params.startDate);
+    const parsedEndDate = parseDashboardDate(params.endDate);
+    const hasCustomRange = Boolean(parsedStartDate && parsedEndDate);
+    const selectedDays = hasCustomRange ? null : parseDashboardDays(params.days);
+    const filters = {
+        domain: selectedDomain,
+        ...(hasCustomRange
+            ? {
+                startDate: parsedStartDate,
+                endDate: parsedEndDate,
+            }
+            : {
+                days: selectedDays ?? DEFAULT_DASHBOARD_DAYS,
+            }),
+    };
+
+    const loadSafely = async <T,>(label: string, loader: () => Promise<T>, fallback: T) => {
+        try {
+            return await loader();
+        } catch (error) {
+            console.error(`[dashboard] ${label} query failed`, error);
+            return fallback;
+        }
+    };
+
+    const dashboardOverview = await loadSafely("overview", () => getDashboardOverview(filters), getEmptyDashboardOverview());
+    const sessionsTrend = await loadSafely("sessions trend", () => getDashboardSessionsTrend(filters), []);
+    const languageDistribution = await loadSafely(
+        "language distribution",
+        () => getDashboardLanguageDistribution(filters),
+        [],
+    );
+    const conditionBreakdown = await loadSafely(
+        "condition breakdown",
+        () => getDashboardConditionBreakdown(filters),
+        {
+            severityBreakdown: { mild: 0, moderate: 0, severe: 0 },
+            visitTypeBreakdown: { firstVisit: 0, followUp: 0, emergency: 0 },
+            topDiagnoses: [],
+        },
+    );
+    const sentimentTrend = await loadSafely("sentiment trend", () => getDashboardSentimentTrend(filters), []);
 
     return (
-        <div className='font-oxanium bg-black'>
-            <div className='w-full h-[120vh] flex flex-col'>
-                {/* Hero Section */}
-                <div className='w-full h-2/24 flex items-center justify-center gap-4 py-4 px-2'>
-                    <DashboardHero />
+        <div className='min-h-screen bg-[#050505] font-oxanium text-white'>
+            <div className='flex w-full flex-col gap-6 px-6 py-6'>
+                <div className='w-full'>
+                    <DashboardHero
+                        selectedDomain={selectedDomain}
+                        selectedDays={selectedDays}
+                        selectedStartDate={hasCustomRange ? params.startDate : undefined}
+                        selectedEndDate={hasCustomRange ? params.endDate : undefined}
+                    />
                 </div>
-                {/* Basic Info */}
-                <div className='w-full h-4/24 flex items-center justify-center gap-8 p-4'>
-                    <BasicInfo totalSessions={dashboardOverview.totalSessions}
+
+                <div className='w-full'>
+                    <BasicInfo
+                        totalSessions={dashboardOverview.totalSessions}
                         averageDuration={dashboardOverview.averageDurationSeconds}
                         satisfactionScore={dashboardOverview.satisfactionScore}
                         totalPatients={dashboardOverview.totalProfiles}
                         totalSessionsChange={dashboardOverview.totalSessionsChange}
-                        averageDurationChange={dashboardOverview.averageDurationChange} />
+                        averageDurationChange={dashboardOverview.averageDurationChange}
+                        domain={selectedDomain}
+                    />
                 </div>
-                {/* Sessions Per Day and Language Disctribution */}
-                <div className=' z-0 w-full h-9/24 flex items-center justify-center gap-4 p-4'>
-                    <div className=' z-10 h-full w-2/3 bg-[#0f0e10] rounded-2xl shadow-[5px_5px_10px_6px_rgba(0,0,0,0.35)]'>
-                        <ChartBarInteractive data={sessionsTrend} />
+
+                <div className='grid w-full grid-cols-1 gap-6 xl:grid-cols-3'>
+                    <div className='overflow-hidden rounded-[30px] border border-[#161616] bg-[#090909] p-1 shadow-[0_20px_70px_rgba(0,0,0,0.34)] xl:col-span-2'>
+                        <ChartBarInteractive data={sessionsTrend} domain={selectedDomain} />
                     </div>
-                    <div className='h-full w-1/3 bg-[#0f0e10] rounded-2xl shadow-[5px_5px_10px_6px_rgba(0,0,0,0.35)]'>
-                        <ChartPieLegend data={languageDistribution} />
+                    <div className='overflow-hidden rounded-[30px] border border-[#161616] bg-[#090909] p-1 shadow-[0_20px_70px_rgba(0,0,0,0.34)]'>
+                        <ChartPieLegend data={languageDistribution} domain={selectedDomain} />
                     </div>
                 </div>
-                {/* Sentiment Trend and Payment Distribution */}
-                <div className='w-full h-9/24 flex items-center justify-center gap-4 p-4'>
-                    <div className='h-full w-1/4 bg-[#0f0e10] rounded-2xl shadow-[5px_5px_10px_6px_rgba(0,0,0,0.35)]'>
-                        <PatientConditionChart data={conditionBreakdown.severityBreakdown} />
+
+                <div className='grid w-full grid-cols-1 gap-6 xl:grid-cols-4'>
+                    <div className='overflow-hidden rounded-[30px] border border-[#161616] bg-[#090909] p-1 shadow-[0_20px_70px_rgba(0,0,0,0.34)] xl:col-span-1'>
+                        <PatientConditionChart data={conditionBreakdown.severityBreakdown} domain={selectedDomain} />
                     </div>
-                    <div className='h-full w-3/4 bg-[#0f0e10] rounded-2xl shadow-[5px_5px_10px_6px_rgba(0,0,0,0.35)]'>
-                        <SentimentTrendChart data={sentimentTrend} />
+                    <div className='overflow-hidden rounded-[30px] border border-[#161616] bg-[#090909] p-1 shadow-[0_20px_70px_rgba(0,0,0,0.34)] xl:col-span-3'>
+                        <SentimentTrendChart data={sentimentTrend} domain={selectedDomain} />
                     </div>
                 </div>
             </div>

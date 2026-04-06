@@ -22,8 +22,10 @@ export default function AppShell({
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex min-h-screen w-full flex-col">
+      <div className="sticky top-0 h-screen shrink-0 self-start">
+        <Sidebar />
+      </div>
+      <div className="flex min-h-screen min-w-0 w-full flex-col">
         <Navbar />
         {children}
       </div>

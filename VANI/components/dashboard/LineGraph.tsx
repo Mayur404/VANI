@@ -16,22 +16,24 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@/components/ui/chart"
-
-const chartConfig = {
-    sessions: {
-        label: "Doctor Sessions",
-        color: "#14b8a6",
-    },
-} satisfies ChartConfig
+import type { DashboardDomain } from "@/lib/services/basic.service"
 
 type ChartBarInteractiveProps = {
     data: Array<{
         date: string;
         totalSessions: number;
     }>;
+    domain?: DashboardDomain;
 }
 
-export function ChartBarInteractive({ data }: ChartBarInteractiveProps) {
+export function ChartBarInteractive({ data, domain = "all" }: ChartBarInteractiveProps) {
+    const accentColor = domain === "finance" ? "#f59e0b" : "#14b8a6"
+    const chartConfig = {
+        sessions: {
+            label: "Doctor Sessions",
+            color: accentColor,
+        },
+    } satisfies ChartConfig
     const chartData = data.map((entry) => ({
         day: new Date(entry.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
         sessions: entry.totalSessions,

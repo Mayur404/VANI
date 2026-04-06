@@ -14,8 +14,8 @@ interface DashboardCustomRangeSelector {
 }
 
 interface DashboardDomain {
-    domain:String;
-    setDomain:(domain:String)=>void;
+    domain:string;
+    setDomain:(domain:string)=>void;
 }
 
 interface TranscriptLine {
@@ -81,6 +81,17 @@ interface RecordingState {
 
     callDuration: number;
     setCallDuration: (n: number | ((prev: number) => number)) => void;
+
+    selectedDomain: 'healthcare' | 'finance' | null;
+    setSelectedDomain: (domain: 'healthcare' | 'finance' | null) => void;
+
+    selectedPatientId: number | null;
+    setSelectedPatientId: (id: number | null) => void;
+
+    selectedPatientName: string | null;
+    setSelectedPatientName: (name: string | null) => void;
+
+    resetVoiceSession: () => void;
 }
 
 const defaultExtraction: ExtractionData = {
@@ -145,6 +156,24 @@ const useRecordingStore = create<RecordingState>((set) => ({
         set((state) => ({ 
             callDuration: typeof n === 'function' ? n(state.callDuration) : n 
         })),
+
+    selectedDomain: null,
+    setSelectedDomain: (selectedDomain) => set({ selectedDomain }),
+
+    selectedPatientId: null,
+    setSelectedPatientId: (selectedPatientId) => set({ selectedPatientId }),
+
+    selectedPatientName: null,
+    setSelectedPatientName: (selectedPatientName) => set({ selectedPatientName }),
+
+    resetVoiceSession: () =>
+        set({
+            isRecording: false,
+            transcript: [],
+            hasStarted: false,
+            sessionReady: false,
+            extraction: defaultExtraction,
+        }),
 }));
 
  export const useDashboardRangeSelector = create<DashboardRangeSelector>((set)=>({

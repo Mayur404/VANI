@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { addDays, format } from "date-fns"
+import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -12,18 +12,59 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { useDashboardCustomRangeSelector } from "@/store/useRecordingStore"
+import type { DashboardDomain } from "@/lib/services/basic.service"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { DateRange } from "react-day-picker"
 
-export function DatePickerWithRange() {
-    const date = useDashboardCustomRangeSelector((state) => state.customRangeSelector)
-    const setDate = useDashboardCustomRangeSelector((state) => state.setCustomRangeSelector)
+type DatePickerWithRangeProps = {
+    startDate?: string;
+    endDate?: string;
+    domain: DashboardDomain;
+}
+
+const parseDate = (value?: string) => {
+    if (!value) return undefined;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+const buildInitialRange = (startDate?: string, endDate?: string): DateRange | null => {
+    const from = parseDate(startDate);
+    const to = parseDate(endDate);
+
+    if (from && to) {
+        return { from, to };
+    }
+
+    return null;
+}
+
+export function DatePickerWithRange({ startDate, endDate, domain }: DatePickerWithRangeProps) {
+    const pathname = usePathname();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const [date, setDate] = React.useState<DateRange | null>(buildInitialRange(startDate, endDate));
+    const isFinance = domain === "finance";
 
     React.useEffect(() => {
-        setDate({
-            from: new Date(new Date().getFullYear(), 0, 20),
-            to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
-        })
-    }, [setDate])
+        setDate(buildInitialRange(startDate, endDate))
+    }, [startDate, endDate])
+
+    const handleDateChange = (value: DateRange | undefined) => {
+        const nextValue = value ?? null;
+        setDate(nextValue);
+
+        if (!nextValue?.from || !nextValue?.to) {
+            return;
+        }
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("startDate", format(nextValue.from, "yyyy-MM-dd"));
+        params.set("endDate", format(nextValue.to, "yyyy-MM-dd"));
+        params.delete("days");
+        const next = params.toString();
+        router.replace(next ? `${pathname}?${next}` : pathname);
+    }
 
     return (
         <Field className="mx-auto w-60 scale-110 font-semibold">
@@ -32,7 +73,9 @@ export function DatePickerWithRange() {
                     <Button
                         variant="outline"
                         id="date-picker-range"
-                        className="justify-start px-2.5 font-normal"
+                        className={`justify-start px-2.5 font-normal ${
+                            isFinance ? "border-amber-500/30 focus:ring-amber-500/30" : "border-emerald-500/30 focus:ring-emerald-500/30"
+                        }`}
                     >
                         <CalendarIcon />
                         {date?.from ? (
@@ -54,7 +97,7 @@ export function DatePickerWithRange() {
                         mode="range"
                         defaultMonth={date?.from}
                         selected={date ?? undefined}
-                        onSelect={(value) => setDate(value ?? null)}
+                        onSelect={handleDateChange}
                         numberOfMonths={2}
                     />
                 </PopoverContent>

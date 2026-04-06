@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Copy, Check, Mic, PhoneOff, Flag, Volume2 } from "lucide-react";
 import useRecordingStore from "@/store/useRecordingStore";
@@ -581,6 +581,7 @@ const VoiceCallPage = () => {
         agent: searchParams.get("agent") || "Dr. Praneeth",
     };
     const scheduledCallId = searchParams.get("scheduledCallId");
+    const autoStartScheduled = searchParams.get("autoStartScheduled") !== "false";
 
     useEffect(() => {
         setPatientName(callContext.name);
@@ -641,9 +642,10 @@ const VoiceCallPage = () => {
     };
 
     useEffect(() => {
-        if (!scheduledCallId || callStatus !== "idle") return;
+        if (!scheduledCallId || !autoStartScheduled || callStatus !== "idle") return;
         void handleAIAutoCall();
-    }, [scheduledCallId, callStatus]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scheduledCallId, autoStartScheduled, callStatus]);
 
     const handleManualCall = async () => {
         try {

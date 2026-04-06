@@ -1,16 +1,16 @@
 "use client";
 
 import { BriefcaseMedical, ChevronRight, CircleDollarSign, Info } from "lucide-react";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { selectDomain } from "./actions";
 import { useDashboardDomain } from "@/store/useRecordingStore";
-import { useRouter } from "next/navigation";
 
 type HomePageClientProps = {
   data: Awaited<ReturnType<typeof import("@/lib/services/home.service").getHomePageData>>;
 };
 
 const HomePageClient = ({ data }: HomePageClientProps) => {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState(false);
   const [choice, setChoice] = useState<"healthcare" | "finance" | null>(null);
   const [lang, setLang] = useState<string | null>(null);
@@ -184,20 +184,35 @@ const HomePageClient = ({ data }: HomePageClientProps) => {
                     {data.summary.activeAlerts} open alerts · {data.summary.activePrograms} active programs
                   </h1>
                 </div>
-                <button
-                  disabled={!selected || !choice}
-                  onClick={() => {
+                <form
+                  action={async () => {
                     if (choice) {
-                      router.push(`/callscheduling`);
+                      startTransition(() => {
+                        void selectDomain(choice);
+                      });
                     }
                   }}
-                  className={`flex items-center justify-center w-fit h-fit ${
-                    selected && choice ? "bg-blue-500 hover:bg-blue-600 cursor-pointer" : "bg-gray-500 cursor-not-allowed opacity-50"
-                  } transition-all duration-300 p-2 rounded-xl text-white disabled:opacity-50`}
                 >
-                  <h4 className="text-xl font-semibold">Continue</h4>
-                  <ChevronRight size={24} />
-                </button>
+                  <button
+                    type="submit"
+                    disabled={!selected || !choice || isPending}
+                    className={`flex items-center justify-center w-fit h-fit ${
+                      selected && choice ? "bg-blue-500 hover:bg-blue-600 cursor-pointer" : "bg-gray-500 cursor-not-allowed opacity-50"
+                    } transition-all duration-300 p-2 rounded-xl text-white disabled:opacity-50`}
+                  >
+                    {isPending ? (
+                      <>
+                        <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        <h4 className="text-xl font-semibold">Loading...</h4>
+                      </>
+                    ) : (
+                      <>
+                        <h4 className="text-xl font-semibold">Continue</h4>
+                        <ChevronRight size={24} />
+                      </>
+                    )}
+                  </button>
+                </form>
               </div>
             </div>
           </div>

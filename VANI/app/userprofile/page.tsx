@@ -20,7 +20,7 @@ type Props = {
 const UserProfilePage = async ({ searchParams }: Props) => {
   const params = await searchParams;
   const domain = params.domain === "finance" ? "finance" : "healthcare";
-  const subjectId = Number(params.id) || 2;
+  const subjectId = Number(params.id) || 6;
 
   if (domain === "finance") {
     return <FinanceProfileView customerId={subjectId} />;
